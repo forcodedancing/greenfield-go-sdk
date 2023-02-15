@@ -59,7 +59,6 @@ func (c *SPClient) CreateObject(ctx context.Context, bucketName, objectName stri
 	}
 
 	// TODO(leo) call chain sdk to send a createObject txn to greenfield, return txnHash
-	// return txnHash, err
 
 	return "", err
 }
@@ -197,7 +196,6 @@ func (c *SPClient) GetObject(ctx context.Context, bucketName, objectName string,
 	}
 
 	return resp.Body, ObjInfo, nil
-
 }
 
 // FGetObject download s3 object payload adn write the object content into local file specified by filePath

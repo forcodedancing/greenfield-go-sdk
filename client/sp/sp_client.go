@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -95,7 +96,7 @@ func NewSpClientWithKeyManager(endpoint string, opt *Option, keyManager keys.Key
 
 	signer := signer.NewMsgSigner(keyManager)
 	spClient.signer = signer
-	
+
 	return spClient, nil
 }
 
@@ -134,6 +135,7 @@ type requestMeta struct {
 	contentLength    int64
 	contentMD5Base64 string // base64 encoded md5sum
 	contentSHA256    string // hex encoded sha256sum
+	challengeInfo    ChallengeInfo
 }
 
 // sendOptions -  options to use to send the http message
@@ -154,6 +156,11 @@ func (c *SPClient) SetHost(hostName string) {
 // GetHost get host name of request
 func (c *SPClient) GetHost() string {
 	return c.host
+}
+
+// SetAccount set client sender address
+func (c *SPClient) SetAccount(addr sdktype.AccAddress) {
+	c.sender = addr
 }
 
 // GetAccount get sender address info
@@ -244,10 +251,20 @@ func (c *SPClient) newRequest(ctx context.Context,
 	}
 
 	if isAdminAPi {
-		if meta.objectName == "" {
-			req.Header.Set(HTTPHeaderResource, meta.bucketName)
-		} else {
-			req.Header.Set(HTTPHeaderResource, meta.bucketName+"/"+meta.objectName)
+		if meta.bucketName != "" {
+			if meta.objectName == "" {
+				req.Header.Set(HTTPHeaderResource, meta.bucketName)
+			} else {
+				req.Header.Set(HTTPHeaderResource, meta.bucketName+"/"+meta.objectName)
+			}
+		}
+		// set challenge headers
+		// if challengeInfo.ObjectId is not empty, other field should be set as well
+		if meta.challengeInfo.ObjectId != "" {
+			info := meta.challengeInfo
+			req.Header.Set(HTTPHeaderObjectId, info.ObjectId)
+			req.Header.Set(HTTPHeaderSPAddr, info.SPAddr.String())
+			req.Header.Set(HTTPHeaderPieceIndex, strconv.Itoa(info.PieceIndex))
 		}
 	} else {
 		// set request host
@@ -350,16 +367,16 @@ func (c *SPClient) GenerateURL(bucketName string, objectName string, relativePat
 		}
 	}
 
-	if bucketName == "" {
-		err := errors.New("no bucketName in path")
-		return nil, err
-	}
-
 	var urlStr string
 	if isAdminApi {
 		prefix := AdminURLPrefix + AdminURLVersion
 		urlStr = scheme + "://" + host + prefix + "/"
 	} else {
+		if bucketName == "" {
+			err := errors.New("no bucketName in path")
+			return nil, err
+		}
+
 		// generate s3 virtual hosted style url
 		if utils.IsDomainNameValid(host) {
 			urlStr = scheme + "://" + bucketName + "." + host + "/"
@@ -426,54 +443,6 @@ func (c *SPClient) SignRequest(req *http.Request, info AuthInfo) error {
 	req.Header.Set(HTTPHeaderAuthorization, strings.Join(authStr, ", "))
 
 	return nil
-}
-
-// GetApproval return the signature info for the approval of preCreating resources
-func (c *SPClient) GetApproval(ctx context.Context, bucketName, objectName string, authInfo AuthInfo) (string, error) {
-	if err := utils.IsValidBucketName(bucketName); err != nil {
-		return "", err
-	}
-
-	if objectName != "" {
-		if err := utils.IsValidObjectName(objectName); err != nil {
-			return "", err
-		}
-	}
-
-	// set the action type
-	urlVal := make(url.Values)
-	if objectName != "" {
-		urlVal["action"] = []string{CreateObjectAction}
-	} else {
-		urlVal["action"] = []string{CreateBucketAction}
-	}
-
-	reqMeta := requestMeta{
-		bucketName:    bucketName,
-		objectName:    objectName,
-		urlValues:     urlVal,
-		urlRelPath:    "get-approval",
-		contentSHA256: EmptyStringSHA256,
-	}
-
-	sendOpt := sendOptions{
-		method:     http.MethodGet,
-		isAdminApi: true,
-	}
-
-	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
-	if err != nil {
-		log.Printf("get approval rejected: %s \n", err.Error())
-		return "", err
-	}
-
-	// fetch primary sp signature from sp response
-	signature := resp.Header.Get(HTTPHeaderPreSignature)
-	if signature == "" {
-		return "", errors.New("fail to fetch pre createObject signature")
-	}
-
-	return signature, nil
 }
 
 // GetPieceHashRoots return primary pieces Hash and secondary piece Hash roots list and object size

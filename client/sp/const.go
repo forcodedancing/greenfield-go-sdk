@@ -9,11 +9,17 @@ const (
 	HTTPHeaderTransactionHash = "X-Gnfd-Txn-Hash"
 	HTTPHeaderResource        = "X-Gnfd-Resource"
 	HTTPHeaderPreSignature    = "X-Gnfd-Pre-Signature"
-	HTTPHeaderDate            = "X-Gnfd-Date"
-	HTTPHeaderEtag            = "ETag"
-	HTTPHeaderRange           = "Range"
-	HTTPHeaderUserAgent       = "User-Agent"
-	HTTPHeaderContentSHA256   = "X-Gnfd-Content-Sha256"
+	HTTPHeaderPieceIndex      = "X-Gnfd-Piece-Index"
+	HTTPHeaderObjectId        = "X-Gnfd-Object-Id"
+	HTTPHeaderSPAddr          = "X-Gnfd-Sp-Addr"
+	HTTPHeaderIntegrityHash   = "X-Gnfd-Integrity-Hash"
+	HTTPHeaderPieceHash       = "X-Gnfd-Piece-Hash"
+
+	HTTPHeaderDate          = "X-Gnfd-Date"
+	HTTPHeaderEtag          = "ETag"
+	HTTPHeaderRange         = "Range"
+	HTTPHeaderUserAgent     = "User-Agent"
+	HTTPHeaderContentSHA256 = "X-Gnfd-Content-Sha256"
 
 	// EmptyStringSHA256 is the hex encoded sha256 value of an empty string
 	EmptyStringSHA256       = `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`
@@ -28,7 +34,7 @@ const (
 	EncodeShards       = 6
 
 	libName        = "Greenfield-go-sdk"
-	Version        = "v0.0.1"
+	Version        = "v0.0.3"
 	UserAgent      = "Greenfield (" + runtime.GOOS + "; " + runtime.GOARCH + ") " + libName + "/" + Version
 	contentTypeXML = "application/xml"
 	ContentDefault = "application/octet-stream"
