@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/bnb-chain/greenfield-go-sdk/utils"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/bnb-chain/greenfield-go-sdk/utils"
+	"github.com/rs/zerolog/log"
 )
 
 const ChallengeUrl = "challenge"
@@ -50,7 +51,7 @@ func (c *SPClient) GetApproval(ctx context.Context, bucketName, objectName strin
 
 	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
 	if err != nil {
-		log.Printf("get approval rejected: %s \n", err.Error())
+		log.Error().Msg("get approval rejected: " + err.Error())
 		return "", err
 	}
 
@@ -83,8 +84,8 @@ func (c *SPClient) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo
 		return ChallengeResult{}, errors.New("fail to get objectId")
 	}
 
-	if info.PieceIndex < 0 || info.PieceIndex > EncodeShards {
-		return ChallengeResult{}, errors.New("index error, should be 0 to 5")
+	if info.PieceIndex < 0 {
+		return ChallengeResult{}, errors.New("index error, should be 0 to parityShards plus dataShards")
 	}
 
 	if info.SPAddr == nil {
@@ -104,23 +105,24 @@ func (c *SPClient) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo
 
 	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
 	if err != nil {
-		log.Printf("get challenge result fail: %s \n", err.Error())
+		log.Error().Msg("get challenge result fail: " + err.Error())
 		return ChallengeResult{}, err
 	}
 
 	// fetch integrity hash
 	integrityHash := resp.Header.Get(HTTPHeaderIntegrityHash)
 	// fetch piece hashes
-	pieceHashs := resp.Header.Get(HTTPHeaderPieceHash)
+	pieceHashes := resp.Header.Get(HTTPHeaderPieceHash)
 
-	if integrityHash == "" || pieceHashs == "" {
+	if integrityHash == "" || pieceHashes == "" {
 		utils.CloseResponse(resp)
 		return ChallengeResult{}, errors.New("fail to fetch hash info")
 	}
 
-	hashList := strings.Split(pieceHashs, ",")
-	if len(hashList) <= 1 {
-		return ChallengeResult{}, errors.New("get piece hashes less than 1")
+	hashList := strings.Split(pieceHashes, ",")
+	// min hash num equals one segment hash plus EC dataShards, parityShards
+	if len(hashList) < 3 {
+		return ChallengeResult{}, errors.New("get piece hashes less than 3")
 	}
 
 	result := ChallengeResult{

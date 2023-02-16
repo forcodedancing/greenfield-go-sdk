@@ -10,7 +10,7 @@ replace (
 
 require (
 	github.com/bnb-chain/greenfield v0.0.5
-	github.com/bnb-chain/greenfield-common/go v0.0.0-20230209233558-ff9447ce4045
+	github.com/bnb-chain/greenfield-common/go v0.0.0-20230216083848-257d910a3759
 	github.com/cosmos/cosmos-sdk v0.46.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/ethereum/go-ethereum v1.10.19
@@ -31,7 +31,7 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
-	github.com/bnb-chain/greenfield-storage-provider v0.0.0-20230117021020-392fc2dd84c7 // indirect
+	github.com/bnb-chain/greenfield-storage-provider v0.0.1 // indirect
 	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 // indirect
@@ -82,8 +82,8 @@ require (
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.11 // indirect
-	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
-	github.com/klauspost/reedsolomon v1.11.6 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
+	github.com/klauspost/reedsolomon v1.11.7 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

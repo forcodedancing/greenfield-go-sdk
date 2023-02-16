@@ -5,15 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/bnb-chain/greenfield-go-sdk/utils"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/rs/zerolog/log"
+
+	"github.com/bnb-chain/greenfield-go-sdk/utils"
 )
 
 // PutObjectMeta  represents meta which is used to construct PutObjectMsg
@@ -50,10 +51,10 @@ func (c *SPClient) CreateObject(ctx context.Context, bucketName, objectName stri
 	if err != nil {
 		return "", err
 	}
-	log.Println("get approve from sp finish,signature is: ", signature)
+	log.Info.Msg("get approve from sp finish,signature is: " + signature)
 
 	// get hash and objectSize from reader
-	_, _, _, err = c.GetPieceHashRoots(reader, SegmentSize, EncodeShards)
+	_, _, _, err = c.GetPieceHashRoots(reader, SegmentSize, DataShards, ParityShards)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +148,7 @@ type ObjectInfo struct {
 // GetObjectOptions contains the options of getObject
 type GetObjectOptions struct {
 	ResponseContentType string `url:"response-content-type,omitempty" header:"-"`
-	Range               string `url:"-" header:"Range,omitempty"`
+	Range               string `url:"-" header:"Range,omitempty"` // support for downloading partial data
 }
 
 // GetObject download s3 object payload and return the related object info
@@ -184,13 +185,13 @@ func (c *SPClient) GetObject(ctx context.Context, bucketName, objectName string,
 
 	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
 	if err != nil {
-		log.Printf("get Object %s fail: %s \n", objectName, err.Error())
+		log.Error().Msg("get Object :" + objectName + "fail:" + err.Error())
 		return nil, ObjectInfo{}, err
 	}
 
 	ObjInfo, err := getObjInfo(bucketName, objectName, resp.Header)
 	if err != nil {
-		log.Printf("get ObjectInfo %s fail: %s \n", objectName, err.Error())
+		log.Error().Msg("get ObjectInfo of :" + objectName + "fail:" + err.Error())
 		utils.CloseResponse(resp)
 		return nil, ObjectInfo{}, err
 	}
