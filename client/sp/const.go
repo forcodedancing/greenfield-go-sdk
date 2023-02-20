@@ -10,8 +10,8 @@ const (
 	HTTPHeaderResource        = "X-Gnfd-Resource"
 	HTTPHeaderPreSignature    = "X-Gnfd-Pre-Signature"
 	HTTPHeaderPieceIndex      = "X-Gnfd-Piece-Index"
+	HTTPHeaderRedundancyIndex = "X_Gnfd-X-Redundancy-Index"
 	HTTPHeaderObjectId        = "X-Gnfd-Object-Id"
-	HTTPHeaderSPAddr          = "X-Gnfd-Sp-Addr"
 	HTTPHeaderIntegrityHash   = "X-Gnfd-Integrity-Hash"
 	HTTPHeaderPieceHash       = "X-Gnfd-Piece-Hash"
 

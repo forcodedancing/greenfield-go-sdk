@@ -182,13 +182,11 @@ func TestChallenge(t *testing.T) {
 		w.Header().Set(spClient.HTTPHeaderIntegrityHash, interityHash)
 		w.WriteHeader(200)
 	})
-
-	_, _, addr := testdata.KeyEthSecp256k1TestPubAddr()
-
+	
 	info := spClient.ChallengeInfo{
-		ObjectId:   "xxx",
-		SPAddr:     addr,
-		PieceIndex: 1,
+		ObjectId:        "xxx",
+		RedundancyIndex: 1,
+		PieceIndex:      1,
 	}
 
 	res, err := client.ChallengeSP(context.Background(), info, spClient.NewAuthInfo(false, ""))

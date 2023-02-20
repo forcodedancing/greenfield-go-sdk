@@ -264,7 +264,7 @@ func (c *SPClient) newRequest(ctx context.Context,
 		if meta.challengeInfo.ObjectId != "" {
 			info := meta.challengeInfo
 			req.Header.Set(HTTPHeaderObjectId, info.ObjectId)
-			req.Header.Set(HTTPHeaderSPAddr, info.SPAddr.String())
+			req.Header.Set(HTTPHeaderRedundancyIndex, strconv.Itoa(info.RedundancyIndex))
 			req.Header.Set(HTTPHeaderPieceIndex, strconv.Itoa(info.PieceIndex))
 		}
 	} else {
@@ -352,7 +352,7 @@ func (c *SPClient) sendReq(ctx context.Context, metadata requestMeta, opt *sendO
 	return resp, nil
 }
 
-// genURL construct the target request url based on the parameters
+// GenerateURL construct the target request url based on the parameters
 func (c *SPClient) GenerateURL(bucketName string, objectName string, relativePath string,
 	queryValues url.Values, isAdminApi bool) (*url.URL, error) {
 	host := c.endpoint.Host

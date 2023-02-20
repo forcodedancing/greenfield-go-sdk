@@ -8,8 +8,6 @@ import (
 	"net/url"
 	"strings"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"github.com/bnb-chain/greenfield-go-sdk/utils"
 	"github.com/rs/zerolog/log"
 )
@@ -65,10 +63,12 @@ func (c *SPClient) GetApproval(ctx context.Context, bucketName, objectName strin
 }
 
 // ChallengeInfo indicates the challenge object info
+// RedundancyIndex if it is primary sp, the value should be -1，
+// else it indicates the index of secondary sp
 type ChallengeInfo struct {
-	ObjectId   string
-	PieceIndex int
-	SPAddr     sdk.AccAddress // the sp address which to be challenge
+	ObjectId        string
+	PieceIndex      int
+	RedundancyIndex int
 }
 
 // ChallengeResult indicates the challenge hash and data results
@@ -88,8 +88,8 @@ func (c *SPClient) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo
 		return ChallengeResult{}, errors.New("index error, should be 0 to parityShards plus dataShards")
 	}
 
-	if info.SPAddr == nil {
-		return ChallengeResult{}, errors.New("challenge sp addr is nil")
+	if info.RedundancyIndex < -1 {
+		return ChallengeResult{}, errors.New("redundancy index error ")
 	}
 
 	reqMeta := requestMeta{
