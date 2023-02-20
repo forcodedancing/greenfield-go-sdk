@@ -99,8 +99,9 @@ func (c *SPClient) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo
 	}
 
 	sendOpt := sendOptions{
-		method:     http.MethodGet,
-		isAdminApi: true,
+		method:           http.MethodGet,
+		isAdminApi:       true,
+		disableCloseBody: true,
 	}
 
 	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
@@ -121,8 +122,8 @@ func (c *SPClient) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo
 
 	hashList := strings.Split(pieceHashes, ",")
 	// min hash num equals one segment hash plus EC dataShards, parityShards
-	if len(hashList) < 3 {
-		return ChallengeResult{}, errors.New("get piece hashes less than 3")
+	if len(hashList) < 1 {
+		return ChallengeResult{}, errors.New("get piece hashes less than 1")
 	}
 
 	result := ChallengeResult{
