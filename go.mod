@@ -10,7 +10,7 @@ replace (
 
 require (
 	github.com/bnb-chain/greenfield v0.0.5
-	github.com/bnb-chain/greenfield-common/go v0.0.0-20230217090118-ff4144bc6331
+	github.com/bnb-chain/greenfield-common/go v0.0.0-20230220061840-40cd33ee8e60
 	github.com/cosmos/cosmos-sdk v0.46.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/ethereum/go-ethereum v1.10.19
