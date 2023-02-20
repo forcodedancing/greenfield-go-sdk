@@ -15,7 +15,8 @@ import (
 	"strings"
 	"time"
 
-	hashlib "github.com/bnb-chain/greenfield-common/go"
+	lib "github.com/bnb-chain/greenfield-common/go"
+	httplib "github.com/bnb-chain/greenfield-common/go/http"
 	sdktype "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/bnb-chain/greenfield-go-sdk/keys"
@@ -408,7 +409,7 @@ func (c *SPClient) GenerateURL(bucketName string, objectName string, relativePat
 func (c *SPClient) SignRequest(req *http.Request, info AuthInfo) error {
 	var authStr []string
 	if info.SignType == AuthV1 {
-		signMsg := GetMsgToSign(req)
+		signMsg := httplib.GetMsgToSign(req)
 
 		if c.signer == nil {
 			return errors.New("signer can not be nil with auth v1 type")
@@ -448,7 +449,7 @@ func (c *SPClient) SignRequest(req *http.Request, info AuthInfo) error {
 // GetPieceHashRoots return primary pieces Hash and secondary piece Hash roots list and object size
 // It is used for generate meta of object on the chain
 func (c *SPClient) GetPieceHashRoots(reader io.Reader, segSize int64, dataShards, parityShards int) (string, []string, int64, error) {
-	pieceHashRoots, size, err := hashlib.ComputerHash(reader, segSize, dataShards, parityShards)
+	pieceHashRoots, size, err := lib.ComputerHash(reader, segSize, dataShards, parityShards)
 	if err != nil {
 		log.Println("get hash roots fail", err.Error())
 		return "", nil, 0, err

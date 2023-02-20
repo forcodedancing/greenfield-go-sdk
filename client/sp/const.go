@@ -31,7 +31,8 @@ const (
 	CreateObjectAction = "CreateObject"
 	CreateBucketAction = "CreateBucket"
 	SegmentSize        = 16 * 1024 * 1024
-	EncodeShards       = 6
+	DataShards         = 4
+	ParityShards       = 2
 
 	libName        = "Greenfield-go-sdk"
 	Version        = "v0.0.3"
