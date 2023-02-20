@@ -10,7 +10,7 @@ replace (
 
 require (
 	github.com/bnb-chain/greenfield v0.0.5
-	github.com/bnb-chain/greenfield-common/go v0.0.0-20230220061840-40cd33ee8e60
+	github.com/bnb-chain/greenfield-common/go v0.0.0-20230220095438-937c5b838b69
 	github.com/cosmos/cosmos-sdk v0.46.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/ethereum/go-ethereum v1.10.19
@@ -84,7 +84,7 @@ require (
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.16 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect

@@ -156,6 +156,8 @@ github.com/bnb-chain/greenfield v0.0.5 h1:rBjR22e5+eSNPqrTDgNDoEY5mkasIklYfwTHXW
 github.com/bnb-chain/greenfield v0.0.5/go.mod h1:ZXioeBnuVYqAYQ1TmAFX4XjXXW2iqX+VjKGj3+XbLLE=
 github.com/bnb-chain/greenfield-common/go v0.0.0-20230220061840-40cd33ee8e60 h1:nxDUs2VddnR8BeZHBeDnicXu8usfRIR+2i9fU0SJpLA=
 github.com/bnb-chain/greenfield-common/go v0.0.0-20230220061840-40cd33ee8e60/go.mod h1:c8DMlVkqGbVh6tV5l45R8YbS2VxeAe4PLo91r5yvq/4=
+github.com/bnb-chain/greenfield-common/go v0.0.0-20230220095438-937c5b838b69 h1:zf0RTWOAFtPa9bS7ie1QSw5uQIIGVPJMmtMzg0Uhnfk=
+github.com/bnb-chain/greenfield-common/go v0.0.0-20230220095438-937c5b838b69/go.mod h1:c8DMlVkqGbVh6tV5l45R8YbS2VxeAe4PLo91r5yvq/4=
 github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/bradfitz/go-smtpd v0.0.0-20170404230938-deb6d6237625/go.mod h1:HYsPBTaaSFSlLx/70C2HPIMNZpVV8+vt/A+FMnYP11g=
 github.com/bradfitz/gomemcache v0.0.0-20170208213004-1952afaa557d/go.mod h1:PmM6Mmwb0LSuEubjR8N7PtNe1KxZLtOUHtbeikc5h60=
@@ -883,6 +885,8 @@ github.com/mattn/go-isatty v0.0.13/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Ky
 github.com/mattn/go-isatty v0.0.14/go.mod h1:7GGIvUiUoEMVVmxf/4nioHXj79iQHKdU27kJ6hsGG94=
 github.com/mattn/go-isatty v0.0.16 h1:bq3VjFmv/sOjHtdEhmkEV4x1AJtvUvOJ2PFAZ5+peKQ=
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
+github.com/mattn/go-isatty v0.0.17 h1:BTarxUcIeDqL27Mc+vyvdWYSL28zpIhv3RoTdsLMPng=
+github.com/mattn/go-isatty v0.0.17/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
 github.com/mattn/go-runewidth v0.0.2/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mattn/go-runewidth v0.0.3/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
