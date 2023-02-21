@@ -9,10 +9,34 @@ import (
 	"strings"
 
 	"github.com/bnb-chain/greenfield-go-sdk/utils"
+	storage_type "github.com/bnb-chain/greenfield/x/storage/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/rs/zerolog/log"
 )
 
 const ChallengeUrl = "challenge"
+
+// CreateBucketMeta indicates the core meta to construct createBucket msg of storage module
+type CreateBucketMeta struct {
+	bucketName       string
+	isPublic         bool
+	creator          sdk.AccAddress
+	primarySPAddress sdk.AccAddress
+	paymentAddress   sdk.AccAddress
+	expiredHeight    uint64
+}
+
+// CreateObjectMeta indicates the meta to construct createObject msgof storage module
+type CreateObjectMeta struct {
+	bucketName      string
+	objectName      string
+	isPublic        bool
+	contentType     string
+	creator         sdk.AccAddress
+	paymentAddress  sdk.AccAddress
+	secondarySPAccs []sdk.AccAddress
+	expiredHeight   uint64
+}
 
 // GetApproval return the signature info for the approval of preCreating resources
 func (c *SPClient) GetApproval(ctx context.Context, bucketName, objectName string, authInfo AuthInfo) (string, error) {
@@ -55,6 +79,100 @@ func (c *SPClient) GetApproval(ctx context.Context, bucketName, objectName strin
 
 	// fetch primary sp signature from sp response
 	signature := resp.Header.Get(HTTPHeaderPreSignature)
+	if signature == "" {
+		return "", errors.New("fail to fetch pre createObject signature")
+	}
+
+	return signature, nil
+}
+
+// GetCreateBucketApproval return the signature info for the approval of preCreating resources
+func (c *SPClient) GetCreateBucketApproval(ctx context.Context, bucketName string, bucketMeta CreateBucketMeta, authInfo AuthInfo) (string, error) {
+	if err := utils.IsValidBucketName(bucketName); err != nil {
+		return "", err
+	}
+
+	// construct createBucket msg
+	createBucketMsg := storage_type.NewMsgCreateBucket(bucketMeta.creator, bucketMeta.bucketName, bucketMeta.isPublic,
+		bucketMeta.primarySPAddress, bucketMeta.paymentAddress, bucketMeta.expiredHeight, []byte(""))
+
+	msgBytes := createBucketMsg.GetApprovalBytes()
+
+	// set the action type
+	urlVal := make(url.Values)
+	urlVal["action"] = []string{CreateBucketAction}
+
+	reqMeta := requestMeta{
+		bucketName:    bucketName,
+		urlValues:     urlVal,
+		urlRelPath:    "get-approval",
+		contentSHA256: EmptyStringSHA256,
+		TxnMsg:        string(msgBytes),
+	}
+
+	sendOpt := sendOptions{
+		method:     http.MethodGet,
+		isAdminApi: true,
+	}
+
+	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
+	if err != nil {
+		log.Error().Msg("get approval rejected: " + err.Error())
+		return "", err
+	}
+
+	// fetch primary signed msg from sp response
+	signature := resp.Header.Get(HTTPHeaderSignedMsg)
+	if signature == "" {
+		return "", errors.New("fail to fetch pre createObject signature")
+	}
+
+	return signature, nil
+}
+
+func (c *SPClient) GetCreateObjectApproval(ctx context.Context, objectMeta CreateObjectMeta, payloadSize uint64,
+	expectCheckSums [][]byte, authInfo AuthInfo) (string, error) {
+	if err := utils.IsValidBucketName(objectMeta.bucketName); err != nil {
+		return "", err
+	}
+
+	if err := utils.IsValidObjectName(objectMeta.objectName); err != nil {
+		return "", err
+	}
+
+	// set the action type
+	urlVal := make(url.Values)
+	urlVal["action"] = []string{CreateObjectAction}
+
+	// construct createObject msg
+	createObjecttMsg := storage_type.NewMsgCreateObject(objectMeta.creator, objectMeta.bucketName, objectMeta.objectName,
+		payloadSize, objectMeta.isPublic, expectCheckSums, objectMeta.contentType,
+		objectMeta.expiredHeight, []byte(""), objectMeta.secondarySPAccs)
+
+	msgBytes := createObjecttMsg.GetApprovalBytes()
+
+	reqMeta := requestMeta{
+		bucketName:    objectMeta.bucketName,
+		objectName:    objectMeta.objectName,
+		urlValues:     urlVal,
+		urlRelPath:    "get-approval",
+		contentSHA256: EmptyStringSHA256,
+		TxnMsg:        string(msgBytes),
+	}
+
+	sendOpt := sendOptions{
+		method:     http.MethodGet,
+		isAdminApi: true,
+	}
+
+	resp, err := c.sendReq(ctx, reqMeta, &sendOpt, authInfo)
+	if err != nil {
+		log.Error().Msg("get approval rejected: " + err.Error())
+		return "", err
+	}
+
+	// fetch primary signed msg from sp response
+	signature := resp.Header.Get(HTTPHeaderSignedMsg)
 	if signature == "" {
 		return "", errors.New("fail to fetch pre createObject signature")
 	}

@@ -148,6 +148,7 @@ type requestMeta struct {
 	urlValues        url.Values // url values to be added into url
 	Range            string
 	ApproveAction    string
+	TxnMsg           string
 	SignType         string
 	contentType      string
 	contentLength    int64
@@ -284,6 +285,11 @@ func (c *SPClient) newRequest(ctx context.Context,
 			req.Header.Set(HTTPHeaderRedundancyIndex, strconv.Itoa(info.RedundancyIndex))
 			req.Header.Set(HTTPHeaderPieceIndex, strconv.Itoa(info.PieceIndex))
 		}
+
+		if meta.TxnMsg != "" {
+			req.Header.Set(HTTPHeaderUnSignedMsg, meta.TxnMsg)
+		}
+
 	} else {
 		// set request host
 		if c.host != "" {
