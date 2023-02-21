@@ -2,6 +2,7 @@ package chain
 
 import (
 	_ "encoding/json"
+
 	"github.com/bnb-chain/greenfield-go-sdk/keys"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
 	bridgetypes "github.com/bnb-chain/greenfield/x/bridge/types"
@@ -46,7 +47,7 @@ type StakingQueryClient = stakingtypes.QueryClient
 type TxClient = tx.ServiceClient
 type UpgradeQueryClient = upgradetypes.QueryClient
 
-type GreenfieldClient struct {
+type ChainClient struct {
 	AuthQueryClient
 	AuthzQueryClient
 	BankQueryClient
@@ -81,10 +82,10 @@ func grpcConn(addr string) *grpc.ClientConn {
 	return conn
 }
 
-func NewGreenfieldClient(grpcAddr, chainId string) GreenfieldClient {
+func NewChainClient(grpcAddr, chainId string) ChainClient {
 	conn := grpcConn(grpcAddr)
 	cdc := types.Cdc()
-	return GreenfieldClient{
+	return ChainClient{
 		authtypes.NewQueryClient(conn),
 		authztypes.NewQueryClient(conn),
 		banktypes.NewQueryClient(conn),
@@ -109,24 +110,28 @@ func NewGreenfieldClient(grpcAddr, chainId string) GreenfieldClient {
 	}
 }
 
-func NewGreenfieldClientWithKeyManager(grpcAddr, chainId string, keyManager keys.KeyManager) GreenfieldClient {
-	gnfdClient := NewGreenfieldClient(grpcAddr, chainId)
+func NewChainClientWithKeyManager(grpcAddr, chainId string, keyManager keys.KeyManager) ChainClient {
+	gnfdClient := NewChainClient(grpcAddr, chainId)
 	gnfdClient.keyManager = keyManager
 	return gnfdClient
 }
 
-func (c *GreenfieldClient) GetKeyManager() (keys.KeyManager, error) {
+func (c *ChainClient) GetKeyManager() (keys.KeyManager, error) {
 	if c.keyManager == nil {
 		return nil, types.KeyManagerNotInitError
 	}
 	return c.keyManager, nil
 }
 
-func (c *GreenfieldClient) SetChainId(id string) {
+func (c *ChainClient) SetKeyManager(keyManager keys.KeyManager) {
+	c.keyManager = keyManager
+}
+
+func (c *ChainClient) SetChainId(id string) {
 	c.chainId = id
 }
 
-func (c *GreenfieldClient) GetChainId() (string, error) {
+func (c *ChainClient) GetChainId() (string, error) {
 	if c.chainId == "" {
 		return "", types.ChainIdNotSetError
 	}

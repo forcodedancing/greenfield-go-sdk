@@ -10,7 +10,7 @@ import (
 )
 
 func TestOracleParams(t *testing.T) {
-	client := gnfdclient.NewGreenfieldClient(test.TEST_GRPC_ADDR, test.TEST_CHAIN_ID)
+	client := gnfdclient.NewChainClient(test.TEST_GRPC_ADDR, test.TEST_CHAIN_ID)
 
 	query := oracletypes.QueryParamsRequest{}
 	res, err := client.OracleQueryClient.Params(context.Background(), &query)

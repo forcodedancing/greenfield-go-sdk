@@ -61,7 +61,7 @@ keyManager, _ := keys.NewMnemonicKeyManager(mnemonic)
 #### Init client without key manager, you should use it for only querying purpose.
 
 ```go
-client := NewGreenfieldClient("localhost:9090", "greenfield_9000-121")
+client := NewChainClient("localhost:9090", "greenfield_9000-121")
 
 query := banktypes.QueryBalanceRequest{
 		Address: testutil.TEST_ADDR,
@@ -74,7 +74,7 @@ res, err := client.BankQueryClient.Balance(context.Background(), &query)
 
 ```go
 keyManager, _ := keys.NewPrivateKeyManager("ab463aca3d2965233da3d1d6108aa521274c5ddc2369ff72970a52a451863fbf")
-client := NewGreenfieldClientWithKeyManager("localhost:9090", "greenfield_9000-121", keyManager)
+client := NewChainClientWithKeyManager("localhost:9090", "greenfield_9000-121", keyManager)
 ```
 
 #### Broadcast TX

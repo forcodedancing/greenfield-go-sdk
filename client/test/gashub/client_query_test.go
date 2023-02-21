@@ -10,7 +10,7 @@ import (
 )
 
 func TestGashubParams(t *testing.T) {
-	client := gnfdclient.NewGreenfieldClient(test.TEST_GRPC_ADDR, test.TEST_CHAIN_ID)
+	client := gnfdclient.NewChainClient(test.TEST_GRPC_ADDR, test.TEST_CHAIN_ID)
 
 	query := gashubtypes.QueryParamsRequest{}
 	res, err := client.GashubQueryClient.Params(context.Background(), &query)

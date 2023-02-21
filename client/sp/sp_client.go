@@ -101,6 +101,23 @@ func NewSpClientWithKeyManager(endpoint string, opt *Option, keyManager keys.Key
 	return spClient, nil
 }
 
+// SetKeyManager set the keyManager and signer of client
+func (c *SPClient) SetKeyManager(keyManager keys.KeyManager) error {
+	if keyManager == nil {
+		return errors.New("keyManager can not be nil")
+	}
+
+	if keyManager.GetPrivKey() == nil {
+		return errors.New("private key must be set")
+	}
+
+	c.keyManager = keyManager
+
+	signer := signer.NewMsgSigner(keyManager)
+	c.signer = signer
+	return nil
+}
+
 // GetKeyManager return the keyManager object
 func (c *SPClient) GetKeyManager() (keys.KeyManager, error) {
 	if c.keyManager == nil {
