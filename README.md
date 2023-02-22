@@ -61,7 +61,7 @@ keyManager, _ := keys.NewMnemonicKeyManager(mnemonic)
 #### Init client without key manager, you should use it for only querying purpose.
 
 ```go
-client := NewChainClient("localhost:9090", "greenfield_9000-121")
+client := NewIntegratedClient("localhost:9090", "greenfield_9000-121")
 
 query := banktypes.QueryBalanceRequest{
 		Address: testutil.TEST_ADDR,

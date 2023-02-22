@@ -47,7 +47,7 @@ type StakingQueryClient = stakingtypes.QueryClient
 type TxClient = tx.ServiceClient
 type UpgradeQueryClient = upgradetypes.QueryClient
 
-type ChainClient struct {
+type GreenfieldClient struct {
 	AuthQueryClient
 	AuthzQueryClient
 	BankQueryClient
@@ -82,10 +82,10 @@ func grpcConn(addr string) *grpc.ClientConn {
 	return conn
 }
 
-func NewChainClient(grpcAddr, chainId string) ChainClient {
+func NewGreenfieldClient(grpcAddr, chainId string) GreenfieldClient {
 	conn := grpcConn(grpcAddr)
 	cdc := types.Cdc()
-	return ChainClient{
+	return GreenfieldClient{
 		authtypes.NewQueryClient(conn),
 		authztypes.NewQueryClient(conn),
 		banktypes.NewQueryClient(conn),
@@ -110,28 +110,28 @@ func NewChainClient(grpcAddr, chainId string) ChainClient {
 	}
 }
 
-func NewChainClientWithKeyManager(grpcAddr, chainId string, keyManager keys.KeyManager) ChainClient {
-	gnfdClient := NewChainClient(grpcAddr, chainId)
+func NewChainClientWithKeyManager(grpcAddr, chainId string, keyManager keys.KeyManager) GreenfieldClient {
+	gnfdClient := NewGreenfieldClient(grpcAddr, chainId)
 	gnfdClient.keyManager = keyManager
 	return gnfdClient
 }
 
-func (c *ChainClient) GetKeyManager() (keys.KeyManager, error) {
+func (c *GreenfieldClient) GetKeyManager() (keys.KeyManager, error) {
 	if c.keyManager == nil {
 		return nil, types.KeyManagerNotInitError
 	}
 	return c.keyManager, nil
 }
 
-func (c *ChainClient) SetKeyManager(keyManager keys.KeyManager) {
+func (c *GreenfieldClient) SetKeyManager(keyManager keys.KeyManager) {
 	c.keyManager = keyManager
 }
 
-func (c *ChainClient) SetChainId(id string) {
+func (c *GreenfieldClient) SetChainId(id string) {
 	c.chainId = id
 }
 
-func (c *ChainClient) GetChainId() (string, error) {
+func (c *GreenfieldClient) GetChainId() (string, error) {
 	if c.chainId == "" {
 		return "", types.ChainIdNotSetError
 	}

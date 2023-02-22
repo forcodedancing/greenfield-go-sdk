@@ -1,14 +1,15 @@
 package gnfdclient
 
 import (
-	chain "github.com/bnb-chain/greenfield-go-sdk/client/chain"
-	sp "github.com/bnb-chain/greenfield-go-sdk/client/sp"
+	chain "github.com/bnb-chain/greenfield/sdk/client"
+
+	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
 	"github.com/bnb-chain/greenfield-go-sdk/keys"
 )
 
-// GreenfieldClient integrate the chainClient and SPClient
-type GreenfieldClient struct {
-	ChainClient *chain.ChainClient
+// IntegratedClient integrate the chainClient and SPClient
+type IntegratedClient struct {
+	ChainClient *chain.GreenfieldClient
 	SPClient    *sp.SPClient
 }
 
@@ -22,7 +23,7 @@ type SPClientInfo struct {
 	opt      *sp.Option
 }
 
-func NewGreenfieldClient(chainInfo ChainClientInfo, spInfo SPClientInfo) (*GreenfieldClient, error) {
+func NewIntegratedClient(chainInfo ChainClientInfo, spInfo SPClientInfo) (*IntegratedClient, error) {
 	var err error
 	spClient := &sp.SPClient{}
 	if spInfo.endpoint != "" {
@@ -39,21 +40,20 @@ func NewGreenfieldClient(chainInfo ChainClientInfo, spInfo SPClientInfo) (*Green
 		}
 	}
 
-	chainClientPtr := &chain.ChainClient{}
+	chainClient := &chain.GreenfieldClient{}
 	if chainInfo.rpcAddr != "" && chainInfo.grpcAddr != "" {
-		chainClient := chain.NewChainClient(chainInfo.rpcAddr, chainInfo.grpcAddr)
-		chainClientPtr = &chainClient
+		chainClient = chain.NewGreenfieldClient(chainInfo.rpcAddr, chainInfo.grpcAddr)
 	}
 
-	return &GreenfieldClient{
-		ChainClient: chainClientPtr,
+	return &IntegratedClient{
+		ChainClient: chainClient,
 		SPClient:    spClient,
 	}, nil
 }
 
-func NewGreenfieldClientWithKeyManager(chainInfo ChainClientInfo, spInfo SPClientInfo,
-	keyManager keys.KeyManager) (*GreenfieldClient, error) {
-	GreenfieldClient, err := NewGreenfieldClient(chainInfo, spInfo)
+func NewIntegratedWithKeyManager(chainInfo ChainClientInfo, spInfo SPClientInfo,
+	keyManager keys.KeyManager) (*IntegratedClient, error) {
+	GreenfieldClient, err := NewIntegratedClient(chainInfo, spInfo)
 	if err != nil {
 		return nil, err
 	}

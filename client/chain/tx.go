@@ -24,7 +24,7 @@ type TransactionClient interface {
 }
 
 // BroadcastTx signs and broadcasts a tx with simulated gas(if not provided in txOpt)
-func (c *ChainClient) BroadcastTx(msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.BroadcastTxResponse, error) {
+func (c *GreenfieldClient) BroadcastTx(msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.BroadcastTxResponse, error) {
 
 	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
@@ -59,7 +59,7 @@ func (c *ChainClient) BroadcastTx(msgs []sdk.Msg, txOpt *types.TxOption, opts ..
 }
 
 // SimulateTx simulates a tx and gets Gas info
-func (c *ChainClient) SimulateTx(msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
+func (c *GreenfieldClient) SimulateTx(msgs []sdk.Msg, txOpt *types.TxOption, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
 	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 	err := c.constructTx(msgs, txOpt, txBuilder)
@@ -77,7 +77,7 @@ func (c *ChainClient) SimulateTx(msgs []sdk.Msg, txOpt *types.TxOption, opts ...
 	return simulateResponse, nil
 }
 
-func (c *ChainClient) simulateTx(txBytes []byte, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
+func (c *GreenfieldClient) simulateTx(txBytes []byte, opts ...grpc.CallOption) (*tx.SimulateResponse, error) {
 	simulateResponse, err := c.TxClient.Simulate(
 		context.Background(),
 		&tx.SimulateRequest{
@@ -92,7 +92,7 @@ func (c *ChainClient) simulateTx(txBytes []byte, opts ...grpc.CallOption) (*tx.S
 }
 
 // SignTx signs the tx with private key and returns bytes
-func (c *ChainClient) SignTx(msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, error) {
+func (c *GreenfieldClient) SignTx(msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, error) {
 	txConfig := authtx.NewTxConfig(c.codec, []signing.SignMode{signing.SignMode_SIGN_MODE_EIP_712})
 	txBuilder := txConfig.NewTxBuilder()
 	if err := c.constructTxWithGasLimit(msgs, txOpt, txConfig, txBuilder); err != nil {
@@ -101,7 +101,7 @@ func (c *ChainClient) SignTx(msgs []sdk.Msg, txOpt *types.TxOption) ([]byte, err
 	return c.signTx(txConfig, txBuilder)
 }
 
-func (c *ChainClient) signTx(txConfig client.TxConfig, txBuilder client.TxBuilder) ([]byte, error) {
+func (c *GreenfieldClient) signTx(txConfig client.TxConfig, txBuilder client.TxBuilder) ([]byte, error) {
 	km, err := c.GetKeyManager()
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (c *ChainClient) signTx(txConfig client.TxConfig, txBuilder client.TxBuilde
 }
 
 // setSingerInfo gathers the signer info by doing "empty signature" hack, and inject it into txBuilder
-func (c *ChainClient) setSingerInfo(txBuilder client.TxBuilder) error {
+func (c *GreenfieldClient) setSingerInfo(txBuilder client.TxBuilder) error {
 	km, err := c.GetKeyManager()
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ func (c *ChainClient) setSingerInfo(txBuilder client.TxBuilder) error {
 	return nil
 }
 
-func (c *ChainClient) constructTx(msgs []sdk.Msg, txOpt *types.TxOption, txBuilder client.TxBuilder) error {
+func (c *GreenfieldClient) constructTx(msgs []sdk.Msg, txOpt *types.TxOption, txBuilder client.TxBuilder) error {
 	for _, m := range msgs {
 		if err := m.ValidateBasic(); err != nil {
 			return err
@@ -185,7 +185,7 @@ func (c *ChainClient) constructTx(msgs []sdk.Msg, txOpt *types.TxOption, txBuild
 	return c.setSingerInfo(txBuilder)
 }
 
-func (c *ChainClient) constructTxWithGasLimit(msgs []sdk.Msg, txOpt *types.TxOption, txConfig client.TxConfig, txBuilder client.TxBuilder) error {
+func (c *GreenfieldClient) constructTxWithGasLimit(msgs []sdk.Msg, txOpt *types.TxOption, txConfig client.TxConfig, txBuilder client.TxBuilder) error {
 	// construct a tx with txOpt excluding GasLimit
 	err := c.constructTx(msgs, txOpt, txBuilder)
 	if err != nil {
@@ -208,7 +208,7 @@ func (c *ChainClient) constructTxWithGasLimit(msgs []sdk.Msg, txOpt *types.TxOpt
 	return nil
 }
 
-func (c *ChainClient) getAccount() (authtypes.AccountI, error) {
+func (c *GreenfieldClient) getAccount() (authtypes.AccountI, error) {
 	km, err := c.GetKeyManager()
 	if err != nil {
 		return nil, err

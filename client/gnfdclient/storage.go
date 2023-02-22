@@ -7,6 +7,7 @@ import (
 
 	lib "github.com/bnb-chain/greenfield-common/go"
 	"github.com/bnb-chain/greenfield-go-sdk/utils"
+	"github.com/bnb-chain/greenfield/sdk/types"
 	storage_type "github.com/bnb-chain/greenfield/x/storage/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -14,7 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
-	"github.com/bnb-chain/greenfield-go-sdk/types"
 )
 
 var (
@@ -23,7 +23,7 @@ var (
 )
 
 // CreateBucket get approval of creating bucket and send createBucket txn to greenfield chain
-func (c *GreenfieldClient) CreateBucket(ctx context.Context, bucketMeta sp.CreateBucketMeta,
+func (c *IntegratedClient) CreateBucket(ctx context.Context, bucketMeta sp.CreateBucketMeta,
 	txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 	// get approval of creating bucket from sp
 	signedCreateBucketMsg, err := c.SPClient.GetCreateBucketApproval(ctx, bucketMeta, sp.NewAuthInfo(false, ""))
@@ -45,7 +45,7 @@ func (c *GreenfieldClient) CreateBucket(ctx context.Context, bucketMeta sp.Creat
 }
 
 // DelBucket send DeleteBucket txn to chain
-func (c *GreenfieldClient) DelBucket(operator sdk.AccAddress, bucketName string, txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
+func (c *IntegratedClient) DelBucket(operator sdk.AccAddress, bucketName string, txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 	if err := utils.IsValidBucketName(bucketName); err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (c *GreenfieldClient) DelBucket(operator sdk.AccAddress, bucketName string,
 }
 
 // CreateObject get approval of creating object and send createObject txn to greenfield chain
-func (c *GreenfieldClient) CreateObject(ctx context.Context, objectMeta sp.CreateObjectMeta,
+func (c *IntegratedClient) CreateObject(ctx context.Context, objectMeta sp.CreateObjectMeta,
 	reader io.Reader, txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 
 	// get hash and objectSize from reader
@@ -100,7 +100,7 @@ func (c *GreenfieldClient) CreateObject(ctx context.Context, objectMeta sp.Creat
 }
 
 // DelObject send DeleteBucket txn to chain
-func (c *GreenfieldClient) DelObject(operator sdk.AccAddress, bucketName, objectName string,
+func (c *IntegratedClient) DelObject(operator sdk.AccAddress, bucketName, objectName string,
 	txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 	if err := utils.IsValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (c *GreenfieldClient) DelObject(operator sdk.AccAddress, bucketName, object
 }
 
 // CancelCreateObject send CancelCreateObject txn to chain
-func (c *GreenfieldClient) CancelCreateObject(operator sdk.AccAddress, bucketName,
+func (c *IntegratedClient) CancelCreateObject(operator sdk.AccAddress, bucketName,
 	objectName string, txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 	if err := utils.IsValidBucketName(bucketName); err != nil {
 		return nil, err
@@ -143,17 +143,17 @@ func (c *GreenfieldClient) CancelCreateObject(operator sdk.AccAddress, bucketNam
 }
 
 // UploadObject upload payload of object to storage provider
-func (c *GreenfieldClient) UploadObject(ctx context.Context, bucketName, objectName, txnHash string,
+func (c *IntegratedClient) UploadObject(ctx context.Context, bucketName, objectName, txnHash string,
 	reader io.Reader, meta sp.ObjectMeta) (res sp.UploadResult, err error) {
 	return c.SPClient.PutObject(ctx, bucketName, objectName, txnHash, reader, meta, sp.NewAuthInfo(false, ""))
 }
 
 // DownloadObject download the object from primary storage provider
-func (c *GreenfieldClient) DownloadObject(ctx context.Context, bucketName, objectName string) (io.ReadCloser, sp.ObjectInfo, error) {
+func (c *IntegratedClient) DownloadObject(ctx context.Context, bucketName, objectName string) (io.ReadCloser, sp.ObjectInfo, error) {
 	return c.SPClient.GetObject(ctx, bucketName, objectName, sp.DownloadOption{}, sp.NewAuthInfo(false, ""))
 }
 
-func (c *GreenfieldClient) BuyQuotaForBucket(operator sdk.AccAddress, bucketName string,
+func (c *IntegratedClient) BuyQuotaForBucket(operator sdk.AccAddress, bucketName string,
 	quota storage_type.ReadQuota, paymentAcc sdk.AccAddress, txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 	// HeadBucket
 	ctx := context.Background()
@@ -177,7 +177,7 @@ func (c *GreenfieldClient) BuyQuotaForBucket(operator sdk.AccAddress, bucketName
 	return resp, err
 }
 
-func (c *GreenfieldClient) UpdateBucket(operator sdk.AccAddress, bucketName string,
+func (c *IntegratedClient) UpdateBucket(operator sdk.AccAddress, bucketName string,
 	readQuota storage_type.ReadQuota, paymentAcc sdk.AccAddress, txOpts types.TxOption) (*tx.BroadcastTxResponse, error) {
 	if err := utils.IsValidBucketName(bucketName); err != nil {
 		return nil, err
