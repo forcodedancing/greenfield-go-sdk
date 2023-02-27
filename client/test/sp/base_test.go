@@ -145,7 +145,7 @@ func TestGetApproval(t *testing.T) {
 
 	createObjectMsg := storage_type.NewMsgCreateObject(client.GetAccount(), bucketName, objectName, uint64(1000), false, nil, "", 0, nil, nil)
 	err := createObjectMsg.ValidateBasic()
-
+	require.NoError(t, err)
 	//test preCreateObject
 	_, err = client.GetCreateObjectApproval(context.Background(), createObjectMsg, spClient.NewAuthInfo(false, ""))
 
