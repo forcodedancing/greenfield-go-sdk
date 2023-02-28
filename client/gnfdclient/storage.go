@@ -73,12 +73,13 @@ func (c *GnfdClient) CreateBucket(ctx context.Context, bucketName string, primar
 	if err != nil {
 		return GnfdResponse{"", err, "CreateBucket"}
 	}
+	log.Info().Msg("get approval finish")
 
 	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{signedMsg}, opts.TxOpts)
 	if err != nil {
 		return GnfdResponse{"", err, "CreateBucket"}
 	}
-
+	log.Info().Msg("broad cast finish")
 	log.Info().Msg("get createBucket txn hash:" + resp.TxResponse.TxHash)
 	return GnfdResponse{resp.TxResponse.TxHash, err, "CreateBucket"}
 }
@@ -153,6 +154,7 @@ func (c *GnfdClient) CreateObject(ctx context.Context, bucketName, objectName st
 		return GnfdResponse{"", err, "CreateObject"}
 	}
 
+	log.Info().Msg("compute hash finish")
 	expectCheckSums := make([][]byte, len(pieceHashRoots))
 	for index, hash := range pieceHashRoots {
 		hashByte, err := hex.DecodeString(hash)
@@ -181,17 +183,19 @@ func (c *GnfdClient) CreateObject(ctx context.Context, bucketName, objectName st
 	if err != nil {
 		return GnfdResponse{"", err, "CreateObject"}
 	}
-
+	log.Info().Msg("create msg finish")
 	signedCreateObjectMsg, err := c.SPClient.GetCreateObjectApproval(ctx, createObjectMsg, sp.NewAuthInfo(false, ""))
 	if err != nil {
 		return GnfdResponse{"", err, "CreateObject"}
 	}
 
+	log.Info().Msg("get approval finish")
 	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{signedCreateObjectMsg}, opts.TxOpts)
 	if err != nil {
 		return GnfdResponse{"", err, "CreateObject"}
 	}
 
+	log.Info().Msg("broadcast finish")
 	log.Info().Msg("get createObject txn hash:" + resp.TxResponse.TxHash)
 	return GnfdResponse{resp.TxResponse.TxHash, err, "CreateObject"}
 }
