@@ -3,7 +3,7 @@ package test
 import "github.com/bnb-chain/greenfield-go-sdk/types"
 
 const (
-	TEST_PRIVATE_KEY = "2e876bb3980de05880dfb218179efb42291656d5ac59db71b6a475b9a41fb097"
+	TEST_PRIVATE_KEY = "78b42a1703f497fabf74163f1c814a6205ff96ea0ad9eb33169d087db293d9f7"
 	TEST_ADDR        = "0x76d244CE05c3De4BbC6fDd7F56379B145709ade9"
 	TEST_VAL_ADDR    = "0x80C7Fa8FC825C5e622cdbcAEa0A22d188634BDd3"
 	TEST_GRPC_ADDR   = "localhost:9090"
