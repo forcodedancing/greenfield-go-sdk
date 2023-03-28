@@ -25,7 +25,7 @@ var (
 	mux *http.ServeMux
 
 	// client is the COS client being tested.
-	client *spClient.SPClient
+	client *spClient.SPHandler
 
 	// server is a test HTTP server used to provide mock API responses.
 	server *httptest.Server
@@ -33,7 +33,7 @@ var (
 
 const segmentSize = 16 * 1024 * 1024
 
-// setup sets up a test HTTP server along with  SPClient that is
+// setup sets up a test HTTP server along with  spMsgSender that is
 // configured to talk to that test server.
 func setup() {
 	// test server
@@ -116,7 +116,7 @@ func TestNewClient(t *testing.T) {
 	}
 
 	if got, want := client.GetAgent(), spClient.UserAgent; got != want {
-		t.Errorf("NewSpClient UserAgent is %v, want %v", got, want)
+		t.Errorf("NewSpHandler UserAgent is %v, want %v", got, want)
 	}
 
 	bucketName := "testBucket"

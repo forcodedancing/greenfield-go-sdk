@@ -40,7 +40,7 @@ type ApproveObjectOptions struct {
 }
 
 // GetCreateBucketApproval returns the signature info for the approval of preCreating resources
-func (c *SPClient) GetCreateBucketApproval(ctx context.Context, createBucketMsg *storage_type.MsgCreateBucket, authInfo AuthInfo) (*storage_type.MsgCreateBucket, error) {
+func (c *SPHandler) GetCreateBucketApproval(ctx context.Context, createBucketMsg *storage_type.MsgCreateBucket, authInfo AuthInfo) (*storage_type.MsgCreateBucket, error) {
 	unsignedBytes := createBucketMsg.GetSignBytes()
 
 	// set the action type
@@ -82,7 +82,7 @@ func (c *SPClient) GetCreateBucketApproval(ctx context.Context, createBucketMsg 
 }
 
 // GetCreateObjectApproval returns the signature info for the approval of preCreating resources
-func (c *SPClient) GetCreateObjectApproval(ctx context.Context, createObjectMsg *storage_type.MsgCreateObject, authInfo AuthInfo) (*storage_type.MsgCreateObject, error) {
+func (c *SPHandler) GetCreateObjectApproval(ctx context.Context, createObjectMsg *storage_type.MsgCreateObject, authInfo AuthInfo) (*storage_type.MsgCreateObject, error) {
 	unsignedBytes := createObjectMsg.GetSignBytes()
 
 	// set the action type
@@ -140,7 +140,7 @@ type ChallengeResult struct {
 }
 
 // ChallengeSP sends request to challenge and get challenge result info
-func (c *SPClient) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo AuthInfo) (ChallengeResult, error) {
+func (c *SPHandler) ChallengeSP(ctx context.Context, info ChallengeInfo, authInfo AuthInfo) (ChallengeResult, error) {
 	if info.ObjectId == "" {
 		return ChallengeResult{}, errors.New("fail to get objectId")
 	}

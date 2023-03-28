@@ -31,7 +31,7 @@ type ListBucketsResponse struct {
 }
 
 // ListObjects return object list of the specific bucket
-func (c *SPClient) ListObjects(ctx context.Context, bucketName string, authInfo AuthInfo) (ListObjectsResponse, error) {
+func (c *SPHandler) ListObjects(ctx context.Context, bucketName string, authInfo AuthInfo) (ListObjectsResponse, error) {
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
 		return ListObjectsResponse{}, err
 	}
@@ -74,7 +74,7 @@ func (c *SPClient) ListObjects(ctx context.Context, bucketName string, authInfo 
 }
 
 // ListBuckets list buckets for the owner
-func (c *SPClient) ListBuckets(ctx context.Context, userInfo UserInfo, authInfo AuthInfo) (ListBucketsResponse, error) {
+func (c *SPHandler) ListBuckets(ctx context.Context, userInfo UserInfo, authInfo AuthInfo) (ListBucketsResponse, error) {
 	if userInfo.Address == "" {
 		return ListBucketsResponse{}, errors.New("fail to get user address")
 	}

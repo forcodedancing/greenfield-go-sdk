@@ -10,7 +10,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	hashlib "github.com/bnb-chain/greenfield-common/go/hash"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
+	"github.com/bnb-chain/greenfield-go-sdk/lib/sp"
 	"github.com/bnb-chain/greenfield/sdk/types"
 	gnfdTypes "github.com/bnb-chain/greenfield/types"
 	"github.com/bnb-chain/greenfield/types/common"
@@ -28,6 +28,7 @@ var (
 )
 
 type Principal string
+type Endpoint string
 
 // CreateBucketOptions indicates the meta to construct createBucket msg of storage module
 type CreateBucketOptions struct {
@@ -36,6 +37,7 @@ type CreateBucketOptions struct {
 	PaymentAddress   sdk.AccAddress
 	PrimarySPAddress sdk.AccAddress
 	ChargedQuota     uint64
+	SPAddress        *sdk.AccAddress
 }
 
 // CreateObjectOptions indicates the metadata to construct `createObject` message of storage module
@@ -45,6 +47,7 @@ type CreateObjectOptions struct {
 	SecondarySPAccs []sdk.AccAddress
 	ContentType     string
 	IsReplicaType   bool // indicates whether the object use REDUNDANCY_REPLICA_TYPE
+	SPAddress       *sdk.AccAddress
 }
 
 type DeleteObjectOption struct {
@@ -109,15 +112,16 @@ type NewStatementOptions struct {
 }
 
 // CreateBucket get approval of creating bucket and send createBucket txn to greenfield chain
-func (c *GnfdClient) CreateBucket(ctx context.Context, bucketName string, opts CreateBucketOptions) (string, error) {
+func (c *Client) CreateBucket(ctx context.Context, bucketName string, opts CreateBucketOptions) (string, error) {
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
 
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
+
 	var primaryAddr sdk.AccAddress
 	if len(opts.PrimarySPAddress) > 0 {
 		primaryAddr = opts.PrimarySPAddress
@@ -143,12 +147,12 @@ func (c *GnfdClient) CreateBucket(ctx context.Context, bucketName string, opts C
 	if err != nil {
 		return "", err
 	}
-	signedMsg, err := c.SPClient.GetCreateBucketApproval(ctx, createBucketMsg, sp.NewAuthInfo(false, ""))
+	signedMsg, err := c.spHandler.GetCreateBucketApproval(ctx, createBucketMsg, sp.NewAuthInfo(false, ""))
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{signedMsg}, opts.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{signedMsg}, opts.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -157,17 +161,17 @@ func (c *GnfdClient) CreateBucket(ctx context.Context, bucketName string, opts C
 }
 
 // DeleteBucket send DeleteBucket txn to greenfield chain and return txn hash
-func (c *GnfdClient) DeleteBucket(bucketName string, opt DeleteBucketOption) (string, error) {
+func (c *Client) DeleteBucket(bucketName string, opt DeleteBucketOption) (string, error) {
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
 	delBucketMsg := storageTypes.NewMsgDeleteBucket(km.GetAddr(), bucketName)
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{delBucketMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{delBucketMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -177,9 +181,9 @@ func (c *GnfdClient) DeleteBucket(bucketName string, opt DeleteBucketOption) (st
 
 // GetRedundancyParams query and return the data shards, parity shards and segment size of redundancy
 // configuration on chain
-func (c *GnfdClient) GetRedundancyParams() (uint32, uint32, uint64, error) {
+func (c *Client) GetRedundancyParams() (uint32, uint32, uint64, error) {
 	query := storageTypes.QueryParamsRequest{}
-	queryResp, err := c.ChainClient.StorageQueryClient.Params(context.Background(), &query)
+	queryResp, err := c.chain.StorageQueryClient.Params(context.Background(), &query)
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -189,7 +193,7 @@ func (c *GnfdClient) GetRedundancyParams() (uint32, uint32, uint64, error) {
 }
 
 // ComputeHashRoots return the hash roots list and content size
-func (c *GnfdClient) ComputeHashRoots(reader io.Reader) ([][]byte, int64, storageTypes.RedundancyType, error) {
+func (c *Client) ComputeHashRoots(reader io.Reader) ([][]byte, int64, storageTypes.RedundancyType, error) {
 	dataBlocks, parityBlocks, segSize, err := c.GetRedundancyParams()
 	if err != nil {
 		return nil, 0, storageTypes.REDUNDANCY_EC_TYPE, err
@@ -200,10 +204,23 @@ func (c *GnfdClient) ComputeHashRoots(reader io.Reader) ([][]byte, int64, storag
 }
 
 // CreateObject get approval of creating object and send createObject txn to greenfield chain
-func (c *GnfdClient) CreateObject(ctx context.Context, bucketName, objectName string,
+func (c *Client) CreateObject(ctx context.Context, bucketName, objectName string,
 	reader io.Reader, opts CreateObjectOptions) (string, error) {
 	if reader == nil {
 		return "", errors.New("fail to compute hash of payload, reader is nil")
+	}
+
+	if opts.SPAddress == nil {
+		bucketInfo, err := c.HeadBucket(ctx, bucketName)
+		if err != nil {
+			return "", err
+		}
+
+		_, ok := c.SPInfo[bucketInfo.GetPrimarySpAddress()]
+		if !ok {
+			return "", errors.New("no match endpoint")
+		}
+		_ = c.spHandler.SetEndpoint(string(c.SPInfo[bucketInfo.GetPrimarySpAddress()]))
 	}
 
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
@@ -214,7 +231,7 @@ func (c *GnfdClient) CreateObject(ctx context.Context, bucketName, objectName st
 		return "", err
 	}
 
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -245,12 +262,12 @@ func (c *GnfdClient) CreateObject(ctx context.Context, bucketName, objectName st
 		return "", err
 	}
 
-	signedCreateObjectMsg, err := c.SPClient.GetCreateObjectApproval(ctx, createObjectMsg, sp.NewAuthInfo(false, ""))
+	signedCreateObjectMsg, err := c.spHandler.GetCreateObjectApproval(ctx, createObjectMsg, sp.NewAuthInfo(false, ""))
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{signedCreateObjectMsg}, opts.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{signedCreateObjectMsg}, opts.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -258,7 +275,7 @@ func (c *GnfdClient) CreateObject(ctx context.Context, bucketName, objectName st
 }
 
 // DeleteObject send DeleteBucket txn to greenfield chain and return txn hash
-func (c *GnfdClient) DeleteObject(bucketName, objectName string, opt DeleteObjectOption) (string, error) {
+func (c *Client) DeleteObject(bucketName, objectName string, opt DeleteObjectOption) (string, error) {
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
@@ -267,13 +284,13 @@ func (c *GnfdClient) DeleteObject(bucketName, objectName string, opt DeleteObjec
 		return "", err
 	}
 
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
 	delObjectMsg := storageTypes.NewMsgDeleteObject(km.GetAddr(), bucketName, objectName)
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{delObjectMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{delObjectMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -282,7 +299,7 @@ func (c *GnfdClient) DeleteObject(bucketName, objectName string, opt DeleteObjec
 }
 
 // CancelCreateObject send CancelCreateObject txn to greenfield chain
-func (c *GnfdClient) CancelCreateObject(bucketName, objectName string, opt CancelCreateOption) (string, error) {
+func (c *Client) CancelCreateObject(bucketName, objectName string, opt CancelCreateOption) (string, error) {
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
 		return "", err
 	}
@@ -291,14 +308,14 @@ func (c *GnfdClient) CancelCreateObject(bucketName, objectName string, opt Cance
 		return "", err
 	}
 
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
 
 	cancelCreateMsg := storageTypes.NewMsgCancelCreateObject(km.GetAddr(), bucketName, objectName)
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{cancelCreateMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{cancelCreateMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -307,22 +324,22 @@ func (c *GnfdClient) CancelCreateObject(bucketName, objectName string, opt Cance
 }
 
 // PutObject upload payload of object to storage provider
-func (c *GnfdClient) PutObject(ctx context.Context, bucketName, objectName, txnHash string, objectSize int64,
+func (c *Client) PutObject(ctx context.Context, bucketName, objectName, txnHash string, objectSize int64,
 	reader io.Reader, opt sp.PutObjectOption,
 ) (res sp.UploadResult, err error) {
-	return c.SPClient.PutObject(ctx, bucketName, objectName, txnHash,
+	return c.spHandler.PutObject(ctx, bucketName, objectName, txnHash,
 		objectSize, reader, sp.NewAuthInfo(false, ""), opt)
 }
 
 // GetObject download the object from primary storage provider
-func (c *GnfdClient) GetObject(ctx context.Context, bucketName, objectName string, opt sp.GetObjectOption) (io.ReadCloser, sp.ObjectInfo, error) {
-	return c.SPClient.GetObject(ctx, bucketName, objectName, opt, sp.NewAuthInfo(false, ""))
+func (c *Client) GetObject(ctx context.Context, bucketName, objectName string, opt sp.GetObjectOption) (io.ReadCloser, sp.ObjectInfo, error) {
+	return c.spHandler.GetObject(ctx, bucketName, objectName, opt, sp.NewAuthInfo(false, ""))
 }
 
 // BuyQuotaForBucket buy the target quota of the specific bucket
 // targetQuota indicates the target quota to set for the bucket
-func (c *GnfdClient) BuyQuotaForBucket(ctx context.Context, bucketName string, targetQuota uint64, opt BuyQuotaOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) BuyQuotaForBucket(ctx context.Context, bucketName string, targetQuota uint64, opt BuyQuotaOption) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -337,7 +354,7 @@ func (c *GnfdClient) BuyQuotaForBucket(ctx context.Context, bucketName string, t
 	}
 	updateBucketMsg := storageTypes.NewMsgUpdateBucketInfo(km.GetAddr(), bucketName, &targetQuota, paymentAddr, bucketInfo.Visibility)
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{updateBucketMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{updateBucketMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -346,9 +363,9 @@ func (c *GnfdClient) BuyQuotaForBucket(ctx context.Context, bucketName string, t
 }
 
 // UpdateBucketVisibility update the visibilityType of bucket
-func (c *GnfdClient) UpdateBucketVisibility(ctx context.Context, bucketName string,
+func (c *Client) UpdateBucketVisibility(ctx context.Context, bucketName string,
 	visibility storageTypes.VisibilityType, opt UpdateVisibilityOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -364,7 +381,7 @@ func (c *GnfdClient) UpdateBucketVisibility(ctx context.Context, bucketName stri
 
 	updateBucketMsg := storageTypes.NewMsgUpdateBucketInfo(km.GetAddr(), bucketName, &bucketInfo.ChargedReadQuota, paymentAddr, visibility)
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{updateBucketMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{updateBucketMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -373,8 +390,8 @@ func (c *GnfdClient) UpdateBucketVisibility(ctx context.Context, bucketName stri
 }
 
 // GetQuotaPrice return the quota price of the SP
-func (c *GnfdClient) GetQuotaPrice(ctx context.Context, SPAddress sdk.AccAddress) (uint64, error) {
-	resp, err := c.ChainClient.QueryGetSpStoragePriceByTime(ctx, &spTypes.QueryGetSpStoragePriceByTimeRequest{
+func (c *Client) GetQuotaPrice(ctx context.Context, SPAddress sdk.AccAddress) (uint64, error) {
+	resp, err := c.chain.QueryGetSpStoragePriceByTime(ctx, &spTypes.QueryGetSpStoragePriceByTimeRequest{
 		SpAddr:    SPAddress.String(),
 		Timestamp: 0,
 	})
@@ -385,22 +402,22 @@ func (c *GnfdClient) GetQuotaPrice(ctx context.Context, SPAddress sdk.AccAddress
 }
 
 // GetBucketReadQuota return quota info of bucket of current month, include chain quota, free quota and consumed quota
-func (c *GnfdClient) GetBucketReadQuota(ctx context.Context, bucketName string) (sp.QuotaInfo, error) {
-	return c.SPClient.GetBucketReadQuota(ctx, bucketName, sp.NewAuthInfo(false, ""))
+func (c *Client) GetBucketReadQuota(ctx context.Context, bucketName string) (sp.QuotaInfo, error) {
+	return c.spHandler.GetBucketReadQuota(ctx, bucketName, sp.NewAuthInfo(false, ""))
 }
 
 // ListBucketReadRecord return read quota record info of current month
-func (c *GnfdClient) ListBucketReadRecord(ctx context.Context, bucketName string, maxRecords int, opt ListReadRecordOption) (sp.QuotaRecordInfo, error) {
-	return c.SPClient.ListBucketReadRecord(ctx, bucketName, maxRecords, sp.ListReadRecordOption{StartTimeStamp: opt.StartTimeStamp}, sp.NewAuthInfo(false, ""))
+func (c *Client) ListBucketReadRecord(ctx context.Context, bucketName string, maxRecords int, opt ListReadRecordOption) (sp.QuotaRecordInfo, error) {
+	return c.spHandler.ListBucketReadRecord(ctx, bucketName, maxRecords, sp.ListReadRecordOption{StartTimeStamp: opt.StartTimeStamp}, sp.NewAuthInfo(false, ""))
 }
 
 // HeadBucket query the bucketInfo on chain, return the bucket info if exists
 // return err info if bucket not exist
-func (c *GnfdClient) HeadBucket(ctx context.Context, bucketName string) (*storageTypes.BucketInfo, error) {
+func (c *Client) HeadBucket(ctx context.Context, bucketName string) (*storageTypes.BucketInfo, error) {
 	queryHeadBucketRequest := storageTypes.QueryHeadBucketRequest{
 		BucketName: bucketName,
 	}
-	queryHeadBucketResponse, err := c.ChainClient.HeadBucket(ctx, &queryHeadBucketRequest)
+	queryHeadBucketResponse, err := c.chain.HeadBucket(ctx, &queryHeadBucketRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -410,12 +427,12 @@ func (c *GnfdClient) HeadBucket(ctx context.Context, bucketName string) (*storag
 
 // HeadBucketByID query the bucketInfo on chain by bucketId, return the bucket info if exists
 // return err info if bucket not exist
-func (c *GnfdClient) HeadBucketByID(ctx context.Context, bucketID string) (*storageTypes.BucketInfo, error) {
+func (c *Client) HeadBucketByID(ctx context.Context, bucketID string) (*storageTypes.BucketInfo, error) {
 	headBucketRequest := &storageTypes.QueryHeadBucketByIdRequest{
 		BucketId: bucketID,
 	}
 
-	headBucketResponse, err := c.ChainClient.HeadBucketById(ctx, headBucketRequest, nil)
+	headBucketResponse, err := c.chain.HeadBucketById(ctx, headBucketRequest, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -425,12 +442,12 @@ func (c *GnfdClient) HeadBucketByID(ctx context.Context, bucketID string) (*stor
 
 // HeadObject query the objectInfo on chain to check th object id, return the object info if exists
 // return err info if object not exist
-func (c *GnfdClient) HeadObject(ctx context.Context, bucketName, objectName string) (*storageTypes.ObjectInfo, error) {
+func (c *Client) HeadObject(ctx context.Context, bucketName, objectName string) (*storageTypes.ObjectInfo, error) {
 	queryHeadObjectRequest := storageTypes.QueryHeadObjectRequest{
 		BucketName: bucketName,
 		ObjectName: objectName,
 	}
-	queryHeadObjectResponse, err := c.ChainClient.HeadObject(ctx, &queryHeadObjectRequest)
+	queryHeadObjectResponse, err := c.chain.HeadObject(ctx, &queryHeadObjectRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -440,11 +457,11 @@ func (c *GnfdClient) HeadObject(ctx context.Context, bucketName, objectName stri
 
 // HeadObjectByID query the objectInfo on chain by object id, return the object info if exists
 // return err info if object not exist
-func (c *GnfdClient) HeadObjectByID(ctx context.Context, objID string) (*storageTypes.ObjectInfo, error) {
+func (c *Client) HeadObjectByID(ctx context.Context, objID string) (*storageTypes.ObjectInfo, error) {
 	headObjectRequest := storageTypes.QueryHeadObjectByIdRequest{
 		ObjectId: objID,
 	}
-	queryHeadObjectResponse, err := c.ChainClient.HeadObjectById(ctx, &headObjectRequest, nil)
+	queryHeadObjectResponse, err := c.chain.HeadObjectById(ctx, &headObjectRequest, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -454,9 +471,9 @@ func (c *GnfdClient) HeadObjectByID(ctx context.Context, objID string) (*storage
 
 // ListSP return the storage provider info on chain
 // isInService indicates if only display the sp with STATUS_IN_SERVICE status
-func (c *GnfdClient) ListSP(ctx context.Context, isInService bool) ([]spTypes.StorageProvider, error) {
+func (c *Client) ListSP(ctx context.Context, isInService bool) ([]spTypes.StorageProvider, error) {
 	request := &spTypes.QueryStorageProvidersRequest{}
-	gnfdRep, err := c.ChainClient.StorageProviders(ctx, request)
+	gnfdRep, err := c.chain.StorageProviders(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -473,13 +490,30 @@ func (c *GnfdClient) ListSP(ctx context.Context, isInService bool) ([]spTypes.St
 	return spInfoList, nil
 }
 
+func (c *Client) GetSPInfo(ctx context.Context) (map[string]Endpoint, error) {
+	spInfo := make(map[string]Endpoint, 10)
+
+	request := &spTypes.QueryStorageProvidersRequest{}
+	gnfdRep, err := c.chain.StorageProviders(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	spList := gnfdRep.GetSps()
+	for _, info := range spList {
+		//spInfoList = append(spInfoList, *info)
+		spInfo[info.GetOperator().String()] = Endpoint(info.Endpoint)
+	}
+
+	return spInfo, nil
+}
+
 // GetSPInfo return the sp info  the sp chain address
-func (c *GnfdClient) GetSPInfo(ctx context.Context, SPAddr sdk.AccAddress) (*spTypes.StorageProvider, error) {
+func (c *Client) GetSPInfo(ctx context.Context, SPAddr sdk.AccAddress) (*spTypes.StorageProvider, error) {
 	request := &spTypes.QueryStorageProviderRequest{
 		SpAddress: SPAddr.String(),
 	}
 
-	gnfdRep, err := c.ChainClient.StorageProvider(ctx, request)
+	gnfdRep, err := c.chain.StorageProvider(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -488,12 +522,12 @@ func (c *GnfdClient) GetSPInfo(ctx context.Context, SPAddr sdk.AccAddress) (*spT
 }
 
 // GetSpAddrFromEndpoint return the chain addr according to the SP endpoint
-func (c *GnfdClient) GetSpAddrFromEndpoint(ctx context.Context) (sdk.AccAddress, error) {
+func (c *Client) GetSpAddrFromEndpoint(ctx context.Context) (sdk.AccAddress, error) {
 	spList, err := c.ListSP(ctx, false)
 	if err != nil {
 		return nil, err
 	}
-	spClientEndpoint := c.SPClient.GetURL().Host
+	spClientEndpoint := c.spHandler.GetURL().Host
 	for _, spInfo := range spList {
 		endpoint := spInfo.GetEndpoint()
 		if strings.Contains(endpoint, "http") {
@@ -513,8 +547,8 @@ func (c *GnfdClient) GetSpAddrFromEndpoint(ctx context.Context) (sdk.AccAddress,
 
 // CreateGroup create a new group on greenfield chain
 // the group members can be initialized  or not
-func (c *GnfdClient) CreateGroup(groupName string, opt CreateGroupOptions) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) CreateGroup(groupName string, opt CreateGroupOptions) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -525,7 +559,7 @@ func (c *GnfdClient) CreateGroup(groupName string, opt CreateGroupOptions) (stri
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{createGroupMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{createGroupMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -534,8 +568,8 @@ func (c *GnfdClient) CreateGroup(groupName string, opt CreateGroupOptions) (stri
 }
 
 // DeleteGroup send DeleteGroup txn to greenfield chain and return txn hash
-func (c *GnfdClient) DeleteGroup(groupName string, txOpts types.TxOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) DeleteGroup(groupName string, txOpts types.TxOption) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -545,7 +579,7 @@ func (c *GnfdClient) DeleteGroup(groupName string, txOpts types.TxOption) (strin
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{deleteGroupMsg}, &txOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{deleteGroupMsg}, &txOpts)
 	if err != nil {
 		return "", err
 	}
@@ -554,9 +588,9 @@ func (c *GnfdClient) DeleteGroup(groupName string, txOpts types.TxOption) (strin
 }
 
 // UpdateGroupMember support adding or removing members from the group and return the txn hash
-func (c *GnfdClient) UpdateGroupMember(groupName string, groupOwner sdk.AccAddress,
+func (c *Client) UpdateGroupMember(groupName string, groupOwner sdk.AccAddress,
 	addMembers, removeMembers []sdk.AccAddress, opts UpdateGroupMemberOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -573,7 +607,7 @@ func (c *GnfdClient) UpdateGroupMember(groupName string, groupOwner sdk.AccAddre
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{updateGroupMsg}, opts.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{updateGroupMsg}, opts.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -581,14 +615,14 @@ func (c *GnfdClient) UpdateGroupMember(groupName string, groupOwner sdk.AccAddre
 	return resp.TxResponse.TxHash, nil
 }
 
-func (c *GnfdClient) LeaveGroup(groupName string, groupOwner sdk.AccAddress, opt LeaveGroupOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) LeaveGroup(groupName string, groupOwner sdk.AccAddress, opt LeaveGroupOption) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
 
 	leaveGroupMsg := storageTypes.NewMsgLeaveGroup(km.GetAddr(), groupOwner, groupName)
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{leaveGroupMsg}, opt.TxOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{leaveGroupMsg}, opt.TxOpts)
 	if err != nil {
 		return "", err
 	}
@@ -598,13 +632,13 @@ func (c *GnfdClient) LeaveGroup(groupName string, groupOwner sdk.AccAddress, opt
 
 // HeadGroup query the groupInfo on chain, return the group info if exists
 // return err info if group not exist
-func (c *GnfdClient) HeadGroup(ctx context.Context, groupName string, groupOwner sdk.AccAddress) (*storageTypes.GroupInfo, error) {
+func (c *Client) HeadGroup(ctx context.Context, groupName string, groupOwner sdk.AccAddress) (*storageTypes.GroupInfo, error) {
 	headGroupRequest := storageTypes.QueryHeadGroupRequest{
 		GroupOwner: groupOwner.String(),
 		GroupName:  groupName,
 	}
 
-	headGroupResponse, err := c.ChainClient.HeadGroup(ctx, &headGroupRequest)
+	headGroupResponse, err := c.chain.HeadGroup(ctx, &headGroupRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -613,14 +647,14 @@ func (c *GnfdClient) HeadGroup(ctx context.Context, groupName string, groupOwner
 }
 
 // HeadGroupMember query the group member info on chain, return true if the member exists in group
-func (c *GnfdClient) HeadGroupMember(ctx context.Context, groupName string, groupOwner, headMember sdk.AccAddress) bool {
+func (c *Client) HeadGroupMember(ctx context.Context, groupName string, groupOwner, headMember sdk.AccAddress) bool {
 	headGroupRequest := storageTypes.QueryHeadGroupMemberRequest{
 		GroupName:  groupName,
 		GroupOwner: groupOwner.String(),
 		Member:     headMember.String(),
 	}
 
-	_, err := c.ChainClient.HeadGroupMember(ctx, &headGroupRequest)
+	_, err := c.chain.HeadGroupMember(ctx, &headGroupRequest)
 	return err == nil
 }
 
@@ -660,9 +694,9 @@ func NewPrincipalWithGroupId(groupId uint64) (Principal, error) {
 }
 
 // PutBucketPolicy apply bucket policy to the principal, return the txn hash
-func (c *GnfdClient) PutBucketPolicy(bucketName string, principalStr Principal,
+func (c *Client) PutBucketPolicy(bucketName string, principalStr Principal,
 	statements []*permTypes.Statement, opt PutPolicyOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -680,9 +714,9 @@ func (c *GnfdClient) PutBucketPolicy(bucketName string, principalStr Principal,
 }
 
 // PutObjectPolicy apply object policy to the principal, return the txn hash
-func (c *GnfdClient) PutObjectPolicy(bucketName, objectName string, principalStr Principal,
+func (c *Client) PutObjectPolicy(bucketName, objectName string, principalStr Principal,
 	statements []*permTypes.Statement, opt PutPolicyOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -701,9 +735,9 @@ func (c *GnfdClient) PutObjectPolicy(bucketName, objectName string, principalStr
 }
 
 // PutGroupPolicy apply group policy to user specified by principalAddr, the sender need to be the owner of the group
-func (c *GnfdClient) PutGroupPolicy(groupName string, principalAddr sdk.AccAddress,
+func (c *Client) PutGroupPolicy(groupName string, principalAddr sdk.AccAddress,
 	statements []*permTypes.Statement, opt PutPolicyOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -717,12 +751,12 @@ func (c *GnfdClient) PutGroupPolicy(groupName string, principalAddr sdk.AccAddre
 }
 
 // sendPutPolicyTxn broadcast the putPolicy msg and return the txn hash
-func (c *GnfdClient) sendPutPolicyTxn(msg *storageTypes.MsgPutPolicy, txOpts *types.TxOption) (string, error) {
+func (c *Client) sendPutPolicyTxn(msg *storageTypes.MsgPutPolicy, txOpts *types.TxOption) (string, error) {
 	if err := msg.ValidateBasic(); err != nil {
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{msg}, txOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{msg}, txOpts)
 	if err != nil {
 		return "", err
 	}
@@ -731,8 +765,8 @@ func (c *GnfdClient) sendPutPolicyTxn(msg *storageTypes.MsgPutPolicy, txOpts *ty
 }
 
 // DeleteBucketPolicy delete the bucket policy of the principal
-func (c *GnfdClient) DeleteBucketPolicy(bucketName string, principalAddr sdk.AccAddress, opt DeletePolicyOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) DeleteBucketPolicy(bucketName string, principalAddr sdk.AccAddress, opt DeletePolicyOption) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -743,8 +777,8 @@ func (c *GnfdClient) DeleteBucketPolicy(bucketName string, principalAddr sdk.Acc
 	return c.sendDelPolicyTxn(km.GetAddr(), resource, principal, opt.TxOpts)
 }
 
-func (c *GnfdClient) DeleteObjectPolicy(bucketName, objectName string, principalAddr sdk.AccAddress, opt DeletePolicyOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) DeleteObjectPolicy(bucketName, objectName string, principalAddr sdk.AccAddress, opt DeletePolicyOption) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -755,8 +789,8 @@ func (c *GnfdClient) DeleteObjectPolicy(bucketName, objectName string, principal
 }
 
 // DeleteGroupPolicy  delete group policy of the principal, the sender need to be the owner of the group
-func (c *GnfdClient) DeleteGroupPolicy(groupName string, principalAddr sdk.AccAddress, opt DeletePolicyOption) (string, error) {
-	km, err := c.ChainClient.GetKeyManager()
+func (c *Client) DeleteGroupPolicy(groupName string, principalAddr sdk.AccAddress, opt DeletePolicyOption) (string, error) {
+	km, err := c.chain.GetKeyManager()
 	if err != nil {
 		return "", errors.New("key manager is nil")
 	}
@@ -768,14 +802,14 @@ func (c *GnfdClient) DeleteGroupPolicy(groupName string, principalAddr sdk.AccAd
 }
 
 // sendDelPolicyTxn broadcast the deletePolicy msg and return the txn hash
-func (c *GnfdClient) sendDelPolicyTxn(operator sdk.AccAddress, resource string, principal *permTypes.Principal, txOpts *types.TxOption) (string, error) {
+func (c *Client) sendDelPolicyTxn(operator sdk.AccAddress, resource string, principal *permTypes.Principal, txOpts *types.TxOption) (string, error) {
 	delPolicyMsg := storageTypes.NewMsgDeletePolicy(operator, resource, principal)
 
 	if err := delPolicyMsg.ValidateBasic(); err != nil {
 		return "", err
 	}
 
-	resp, err := c.ChainClient.BroadcastTx([]sdk.Msg{delPolicyMsg}, txOpts)
+	resp, err := c.chain.BroadcastTx([]sdk.Msg{delPolicyMsg}, txOpts)
 	if err != nil {
 		return "", err
 	}
@@ -784,7 +818,7 @@ func (c *GnfdClient) sendDelPolicyTxn(operator sdk.AccAddress, resource string, 
 }
 
 // IsBucketPermissionAllowed check if the permission of bucket is allowed to the user
-func (c *GnfdClient) IsBucketPermissionAllowed(ctx context.Context, user sdk.AccAddress,
+func (c *Client) IsBucketPermissionAllowed(ctx context.Context, user sdk.AccAddress,
 	bucketName string, action permTypes.ActionType) (permTypes.Effect, error) {
 	verifyReq := storageTypes.QueryVerifyPermissionRequest{
 		Operator:   user.String(),
@@ -792,7 +826,7 @@ func (c *GnfdClient) IsBucketPermissionAllowed(ctx context.Context, user sdk.Acc
 		ActionType: action,
 	}
 
-	verifyResp, err := c.ChainClient.VerifyPermission(ctx, &verifyReq)
+	verifyResp, err := c.chain.VerifyPermission(ctx, &verifyReq)
 	if err != nil {
 		return permTypes.EFFECT_DENY, err
 	}
@@ -801,7 +835,7 @@ func (c *GnfdClient) IsBucketPermissionAllowed(ctx context.Context, user sdk.Acc
 }
 
 // IsObjectPermissionAllowed check if the permission of the object is allowed to the user
-func (c *GnfdClient) IsObjectPermissionAllowed(ctx context.Context, user sdk.AccAddress,
+func (c *Client) IsObjectPermissionAllowed(ctx context.Context, user sdk.AccAddress,
 	bucketName, objectName string, action permTypes.ActionType) (permTypes.Effect, error) {
 	verifyReq := storageTypes.QueryVerifyPermissionRequest{
 		Operator:   user.String(),
@@ -810,7 +844,7 @@ func (c *GnfdClient) IsObjectPermissionAllowed(ctx context.Context, user sdk.Acc
 		ActionType: action,
 	}
 
-	verifyResp, err := c.ChainClient.VerifyPermission(ctx, &verifyReq)
+	verifyResp, err := c.chain.VerifyPermission(ctx, &verifyReq)
 	if err != nil {
 		return permTypes.EFFECT_DENY, err
 	}
@@ -819,7 +853,7 @@ func (c *GnfdClient) IsObjectPermissionAllowed(ctx context.Context, user sdk.Acc
 }
 
 // GetBucketPolicy get the bucket policy info of the user specified by principalAddr
-func (c *GnfdClient) GetBucketPolicy(ctx context.Context, bucketName string, principalAddr sdk.AccAddress) (*permTypes.Policy, error) {
+func (c *Client) GetBucketPolicy(ctx context.Context, bucketName string, principalAddr sdk.AccAddress) (*permTypes.Policy, error) {
 	resource := gnfdTypes.NewBucketGRN(bucketName).String()
 
 	queryPolicy := storageTypes.QueryPolicyForAccountRequest{
@@ -827,7 +861,7 @@ func (c *GnfdClient) GetBucketPolicy(ctx context.Context, bucketName string, pri
 		PrincipalAddress: principalAddr.String(),
 	}
 
-	queryPolicyResp, err := c.ChainClient.QueryPolicyForAccount(ctx, &queryPolicy)
+	queryPolicyResp, err := c.chain.QueryPolicyForAccount(ctx, &queryPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -836,14 +870,14 @@ func (c *GnfdClient) GetBucketPolicy(ctx context.Context, bucketName string, pri
 }
 
 // GetObjectPolicy get the object policy info of the user specified by principalAddr
-func (c *GnfdClient) GetObjectPolicy(ctx context.Context, bucketName, objectName string, principalAddr sdk.AccAddress) (*permTypes.Policy, error) {
+func (c *Client) GetObjectPolicy(ctx context.Context, bucketName, objectName string, principalAddr sdk.AccAddress) (*permTypes.Policy, error) {
 	resource := gnfdTypes.NewObjectGRN(bucketName, objectName)
 	queryPolicy := storageTypes.QueryPolicyForAccountRequest{
 		Resource:         resource.String(),
 		PrincipalAddress: principalAddr.String(),
 	}
 
-	queryPolicyResp, err := c.ChainClient.QueryPolicyForAccount(ctx, &queryPolicy)
+	queryPolicyResp, err := c.chain.QueryPolicyForAccount(ctx, &queryPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -853,7 +887,7 @@ func (c *GnfdClient) GetObjectPolicy(ctx context.Context, bucketName, objectName
 
 // GetBucketPolicyOfGroup get the bucket policy info of the group specified by group id
 // it queries a bucket policy that grants permission to a group
-func (c *GnfdClient) GetBucketPolicyOfGroup(ctx context.Context, bucketName string, groupId uint64) (*permTypes.Policy, error) {
+func (c *Client) GetBucketPolicyOfGroup(ctx context.Context, bucketName string, groupId uint64) (*permTypes.Policy, error) {
 	resource := gnfdTypes.NewBucketGRN(bucketName).String()
 
 	queryPolicy := storageTypes.QueryPolicyForGroupRequest{
@@ -861,7 +895,7 @@ func (c *GnfdClient) GetBucketPolicyOfGroup(ctx context.Context, bucketName stri
 		PrincipalGroupId: sdkmath.NewUint(groupId).String(),
 	}
 
-	queryPolicyResp, err := c.ChainClient.QueryPolicyForGroup(ctx, &queryPolicy)
+	queryPolicyResp, err := c.chain.QueryPolicyForGroup(ctx, &queryPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -871,14 +905,14 @@ func (c *GnfdClient) GetBucketPolicyOfGroup(ctx context.Context, bucketName stri
 
 // GetObjectPolicyOfGroup get the object policy info of the group specified by group id
 // it queries an object policy that grants permission to a group
-func (c *GnfdClient) GetObjectPolicyOfGroup(ctx context.Context, bucketName, objectName string, groupId uint64) (*permTypes.Policy, error) {
+func (c *Client) GetObjectPolicyOfGroup(ctx context.Context, bucketName, objectName string, groupId uint64) (*permTypes.Policy, error) {
 	resource := gnfdTypes.NewObjectGRN(bucketName, objectName)
 	queryPolicy := storageTypes.QueryPolicyForGroupRequest{
 		Resource:         resource.String(),
 		PrincipalGroupId: sdkmath.NewUint(groupId).String(),
 	}
 
-	queryPolicyResp, err := c.ChainClient.QueryPolicyForGroup(ctx, &queryPolicy)
+	queryPolicyResp, err := c.chain.QueryPolicyForGroup(ctx, &queryPolicy)
 	if err != nil {
 		return nil, err
 	}

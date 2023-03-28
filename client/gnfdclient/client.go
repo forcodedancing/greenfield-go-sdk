@@ -1,35 +1,56 @@
 package gnfdclient
 
 import (
-	client "github.com/bnb-chain/greenfield-go-sdk/client/chain"
-	"github.com/bnb-chain/greenfield-go-sdk/client/sp"
+	"context"
+
+	client "github.com/bnb-chain/greenfield-go-sdk/lib/chain"
+	"github.com/bnb-chain/greenfield-go-sdk/lib/sp"
 	chain "github.com/bnb-chain/greenfield/sdk/client"
 	"github.com/bnb-chain/greenfield/sdk/keys"
 )
 
 type (
-	GreenfieldClient       = client.GreenfieldClient
+	ChainClient            = *chain.GreenfieldClient
 	GreenfieldClientOption = client.GreenfieldClientOption
 )
 
-// GnfdClient integrates the chainClient and SPClient
-type GnfdClient struct {
-	ChainClient *chain.GreenfieldClient
-	SPClient    *sp.SPClient
+// Client integrates the chain and spHandler
+type Client struct {
+	chain     ChainClient
+	spHandler *sp.SPHandler
+	SPInfo    map[string]Endpoint //map of chain address and endpoint
 }
 
-// NewGnfdClient returns GnfdClient from chain info and sp info
+type NewClientOption struct {
+	SPEndpoint *string
+	secure     bool
+	km         keys.KeyManager
+}
+
+// NewClient returns Client from chain info and sp info
 // km pass a keyManager for SP client to sign http request
-func NewGnfdClient(grpcAddrs string, chainId string, spEndpoint string, km keys.KeyManager, secure bool, gnfdopts ...GreenfieldClientOption) (*GnfdClient, error) {
+func NewClient(grpcAddrs string, chainId string, opt NewClientOption, gnfdopts ...GreenfieldClientOption) (*Client, error) {
 	chainClient := chain.NewGreenfieldClient(grpcAddrs, chainId, gnfdopts...)
 
-	spClient, err := sp.NewSpClient(spEndpoint, sp.WithKeyManager(km), sp.WithSecure(secure))
+	var spClient *sp.SPHandler
+	var err error
+	if opt.SPEndpoint != nil {
+		spClient, err = sp.NewSpHandler(*opt.SPEndpoint, sp.WithKeyManager(opt.km), sp.WithSecure(opt.secure))
+		if err != nil {
+			return nil, err
+		}
+	}
+	client := &Client{
+		chain:     chainClient,
+		spHandler: spClient,
+	}
+
+	ctx := context.Background()
+	spInfo, err := client.GetSPInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &GnfdClient{
-		ChainClient: chainClient,
-		SPClient:    spClient,
-	}, nil
+	client.SPInfo = spInfo
+	return client, nil
 }

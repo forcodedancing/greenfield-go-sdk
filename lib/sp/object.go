@@ -32,7 +32,7 @@ func (t *UploadResult) String() string {
 
 // PutObject supports the second stage of uploading the object to bucket.
 // txnHash should be the str which hex.encoding from txn hash bytes
-func (c *SPClient) PutObject(ctx context.Context, bucketName, objectName, txnHash string, objectSize int64,
+func (c *SPHandler) PutObject(ctx context.Context, bucketName, objectName, txnHash string, objectSize int64,
 	reader io.Reader, authInfo AuthInfo, opt PutObjectOption,
 ) (res UploadResult, err error) {
 	if txnHash == "" {
@@ -80,7 +80,7 @@ func (c *SPClient) PutObject(ctx context.Context, bucketName, objectName, txnHas
 }
 
 // FPutObject supports uploading object from local file
-func (c *SPClient) FPutObject(ctx context.Context, bucketName, objectName,
+func (c *SPHandler) FPutObject(ctx context.Context, bucketName, objectName,
 	filePath, txnHash, contentType string, authInfo AuthInfo,
 ) (res UploadResult, err error) {
 	fReader, err := os.Open(filePath)
@@ -129,7 +129,7 @@ func (o *GetObjectOption) SetRange(start, end int64) error {
 }
 
 // GetObject download s3 object payload and return the related object info
-func (c *SPClient) GetObject(ctx context.Context, bucketName, objectName string,
+func (c *SPHandler) GetObject(ctx context.Context, bucketName, objectName string,
 	opts GetObjectOption, authInfo AuthInfo) (io.ReadCloser, ObjectInfo, error) {
 	if err := s3util.CheckValidBucketName(bucketName); err != nil {
 		return nil, ObjectInfo{}, err
@@ -169,7 +169,7 @@ func (c *SPClient) GetObject(ctx context.Context, bucketName, objectName string,
 }
 
 // FGetObject download s3 object payload adn write the object content into local file specified by filePath
-func (c *SPClient) FGetObject(ctx context.Context, bucketName, objectName, filePath string, opts GetObjectOption, authinfo AuthInfo) error {
+func (c *SPHandler) FGetObject(ctx context.Context, bucketName, objectName, filePath string, opts GetObjectOption, authinfo AuthInfo) error {
 	// Verify if destination already exists.
 	st, err := os.Stat(filePath)
 	if err == nil {

@@ -214,7 +214,7 @@ client := NewSpClientWithKeyManager("http://0.0.0.0:26750", &spClient.Option{}, 
 If the `SPclient` uses `AuthV2`, the client can be initialized without a key manager:
 ```
 // If the client does not manage the private key locally and use local
-client := NewSpClient("http://0.0.0.0:26750", &spClient.Option{})
+client := NewSpHandler("http://0.0.0.0:26750", &spClient.Option{})
 ```
 
 #### Call APIs and Send Requests to the Storage Provider

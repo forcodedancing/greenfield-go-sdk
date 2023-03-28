@@ -26,8 +26,8 @@ import (
 	"github.com/bnb-chain/greenfield-go-sdk/utils"
 )
 
-// SPClient is a client manages communication with the inscription API.
-type SPClient struct {
+// SPHandler is a client manages communication with the inscription API.
+type SPHandler struct {
 	endpoint  *url.URL // Parsed endpoint url provided by the user.
 	client    *http.Client
 	userAgent string
@@ -54,17 +54,17 @@ type RetryOptions struct {
 }
 
 type SpClientOption interface {
-	Apply(*SPClient)
+	Apply(*SPHandler)
 }
 
-type SpClientOptionFunc func(*SPClient)
+type SpClientOptionFunc func(*SPHandler)
 
-func (f SpClientOptionFunc) Apply(client *SPClient) {
+func (f SpClientOptionFunc) Apply(client *SPHandler) {
 	f(client)
 }
 
 func WithKeyManager(km keys.KeyManager) SpClientOption {
-	return SpClientOptionFunc(func(client *SPClient) {
+	return SpClientOptionFunc(func(client *SPHandler) {
 		err := client.SetKeyManager(km)
 		if err != nil {
 			panic(err)
@@ -73,15 +73,15 @@ func WithKeyManager(km keys.KeyManager) SpClientOption {
 }
 
 func WithSecure(secure bool) SpClientOption {
-	return SpClientOptionFunc(func(client *SPClient) {
+	return SpClientOptionFunc(func(client *SPHandler) {
 		client.conf.Secure = secure
 	})
 }
 
-// NewSpClient returns a new greenfield client
-func NewSpClient(endpoint string, opts ...SpClientOption) (*SPClient, error) {
+// NewSpHandler returns a new greenfield client
+func NewSpHandler(endpoint string, opts ...SpClientOption) (*SPHandler, error) {
 	httpClient := &http.Client{}
-	c := &SPClient{
+	c := &SPHandler{
 		client:    httpClient,
 		userAgent: UserAgent,
 		conf: &SPClientConfig{
@@ -106,8 +106,18 @@ func NewSpClient(endpoint string, opts ...SpClientOption) (*SPClient, error) {
 	return c, nil
 }
 
+func (c *SPHandler) SetEndpoint(endpoint string) error {
+	url, err := utils.GetEndpointURL(endpoint, c.conf.Secure)
+	if err != nil {
+		return err
+	}
+
+	c.SetUrl(url)
+	return nil
+}
+
 // SetKeyManager sets the keyManager and signer of client
-func (c *SPClient) SetKeyManager(keyManager keys.KeyManager) error {
+func (c *SPHandler) SetKeyManager(keyManager keys.KeyManager) error {
 	if keyManager == nil {
 		return errors.New("keyManager can not be nil")
 	}
@@ -126,7 +136,7 @@ func (c *SPClient) SetKeyManager(keyManager keys.KeyManager) error {
 }
 
 // GetKeyManager return the keyManager object
-func (c *SPClient) GetKeyManager() (*keys.KeyManager, error) {
+func (c *SPHandler) GetKeyManager() (*keys.KeyManager, error) {
 	if c.keyManager == nil {
 		return nil, types.ErrorKeyManagerNotInit
 	}
@@ -134,7 +144,7 @@ func (c *SPClient) GetKeyManager() (*keys.KeyManager, error) {
 }
 
 // GetMsgSigner returns the signer
-func (c *SPClient) GetMsgSigner() (*signer.MsgSigner, error) {
+func (c *SPHandler) GetMsgSigner() (*signer.MsgSigner, error) {
 	if c.signer == nil {
 		return nil, errors.New("signer is nil")
 	}
@@ -142,7 +152,7 @@ func (c *SPClient) GetMsgSigner() (*signer.MsgSigner, error) {
 }
 
 // GetURL returns the URL of the S3 endpoint.
-func (c *SPClient) GetURL() *url.URL {
+func (c *SPHandler) GetURL() *url.URL {
 	endpoint := *c.endpoint
 	return &endpoint
 }
@@ -175,36 +185,36 @@ type sendOptions struct {
 }
 
 // SetHost sets the host name of request
-func (c *SPClient) SetHost(hostName string) {
+func (c *SPHandler) SetHost(hostName string) {
 	c.host = hostName
 }
 
 // GetHost gets the host name of request
-func (c *SPClient) GetHost() string {
+func (c *SPHandler) GetHost() string {
 	return c.host
 }
 
-func (c *SPClient) SetUrl(url *url.URL) {
+func (c *SPHandler) SetUrl(url *url.URL) {
 	c.endpoint = url
 }
 
 // SetAccount set the client sender address
-func (c *SPClient) SetAccount(addr sdktype.AccAddress) {
+func (c *SPHandler) SetAccount(addr sdktype.AccAddress) {
 	c.sender = addr
 }
 
 // GetAccount gets the sender address info
-func (c *SPClient) GetAccount() sdktype.AccAddress {
+func (c *SPHandler) GetAccount() sdktype.AccAddress {
 	return c.sender
 }
 
 // GetAgent gets the agent name
-func (c *SPClient) GetAgent() string {
+func (c *SPHandler) GetAgent() string {
 	return c.userAgent
 }
 
 // newRequest constructs the http request, set url, body and headers
-func (c *SPClient) newRequest(ctx context.Context,
+func (c *SPHandler) newRequest(ctx context.Context,
 	method string, meta requestMeta, body interface{}, txnHash string, isAdminAPi bool, authInfo AuthInfo,
 ) (req *http.Request, err error) {
 	// construct the target url
@@ -327,7 +337,7 @@ func (c *SPClient) newRequest(ctx context.Context,
 }
 
 // doAPI call client.Do() to send request and read response from servers
-func (c *SPClient) doAPI(ctx context.Context, req *http.Request, meta requestMeta, closeBody bool) (*http.Response, error) {
+func (c *SPHandler) doAPI(ctx context.Context, req *http.Request, meta requestMeta, closeBody bool) (*http.Response, error) {
 	var cancel context.CancelFunc
 	if closeBody {
 		ctx, cancel = context.WithCancel(ctx)
@@ -371,7 +381,7 @@ func (c *SPClient) doAPI(ctx context.Context, req *http.Request, meta requestMet
 }
 
 // sendReq sends the message via REST and handles the response
-func (c *SPClient) sendReq(ctx context.Context, metadata requestMeta, opt *sendOptions, authInfo AuthInfo) (res *http.Response, err error) {
+func (c *SPHandler) sendReq(ctx context.Context, metadata requestMeta, opt *sendOptions, authInfo AuthInfo) (res *http.Response, err error) {
 	req, err := c.newRequest(ctx, opt.method, metadata, opt.body, opt.txnHash, opt.isAdminApi, authInfo)
 	if err != nil {
 		log.Debug().Msg("new request error stop send request" + err.Error())
@@ -387,7 +397,7 @@ func (c *SPClient) sendReq(ctx context.Context, metadata requestMeta, opt *sendO
 }
 
 // GenerateURL constructs the target request url based on the parameters
-func (c *SPClient) GenerateURL(bucketName string, objectName string, relativePath string,
+func (c *SPHandler) GenerateURL(bucketName string, objectName string, relativePath string,
 	queryValues url.Values, isAdminApi bool,
 ) (*url.URL, error) {
 	host := c.endpoint.Host
@@ -436,7 +446,7 @@ func (c *SPClient) GenerateURL(bucketName string, objectName string, relativePat
 }
 
 // SignRequest signs the request and set authorization before send to server
-func (c *SPClient) SignRequest(req *http.Request, info AuthInfo) error {
+func (c *SPHandler) SignRequest(req *http.Request, info AuthInfo) error {
 	var authStr []string
 	if info.SignType == AuthV1 {
 		signMsg := httplib.GetMsgToSign(req)
@@ -478,7 +488,7 @@ func (c *SPClient) SignRequest(req *http.Request, info AuthInfo) error {
 
 // GetPieceHashRoots returns primary pieces, secondary piece Hash roots list and the object size
 // It is used for generate meta of object on the chain
-func (c *SPClient) GetPieceHashRoots(reader io.Reader, segSize int64,
+func (c *SPHandler) GetPieceHashRoots(reader io.Reader, segSize int64,
 	dataShards, parityShards int) ([]byte, [][]byte, int64, storageTypes.RedundancyType, error) {
 	pieceHashRoots, size, redundancyType, err := hashlib.ComputeIntegrityHash(reader, segSize, dataShards, parityShards)
 	if err != nil {
