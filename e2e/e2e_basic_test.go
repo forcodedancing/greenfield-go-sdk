@@ -12,15 +12,17 @@ import (
 	"github.com/bnb-chain/greenfield-go-sdk/client"
 	"github.com/bnb-chain/greenfield-go-sdk/types"
 	types2 "github.com/bnb-chain/greenfield/sdk/types"
+	types3 "github.com/bnb-chain/greenfield/x/storage/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
-	// GrpcAddress = "gnfd-testnet-fullnode-cosmos-us.nodereal.io:443"
-	GrpcAddress = "localhost:9090"
-	ChainID     = "greenfield_9000-121"
+	GrpcAddress = "gnfd-grpc-plaintext.qa.bnbchain.world:9090"
+	// GrpcAddress = "localhost:9090"
+	ChainID = "greenfield_9000-1741"
 )
 
 // ParseValidatorMnemonic read the validator mnemonic from file
@@ -125,4 +127,22 @@ func Test_Account(t *testing.T) {
 	paymentAccountsByOwner, err := cli.GetPaymentAccountsByOwner(ctx, account.GetAddress().String())
 	assert.NoError(t, err)
 	assert.Equal(t, len(paymentAccountsByOwner), 1)
+}
+
+func Test_Basic1(t *testing.T) {
+	account, err := types.NewAccountFromPrivateKey("test", "10a19eb168b3e3ddae3c3ff06c2538d2ce559fe39b70a4b4dc0e03c60b3cbba6")
+	assert.NoError(t, err)
+	cli, err := client.New(ChainID, GrpcAddress, account, client.Option{GrpcDialOption: grpc.WithTransportCredentials(insecure.NewCredentials())})
+	assert.NoError(t, err)
+	ctx := context.Background()
+
+	sp, err := cli.ListSP(ctx, true)
+	if err != nil {
+		return
+	}
+
+	msgCreateBucket := types3.NewMsgCreateBucket(account.GetAddress(), "testbucket", types3.VISIBILITY_TYPE_PUBLIC_READ, sdk.MustAccAddressFromHex(sp[0].OperatorAddress), nil, 0, nil, 0)
+	approval, err := cli.GetCreateBucketApproval(ctx, msgCreateBucket)
+	assert.NoError(t, err)
+	t.Logf("approval : %s", approval.String())
 }
