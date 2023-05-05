@@ -600,6 +600,7 @@ func (c *client) getObjectStatusFromSP(ctx context.Context, bucketName, objectNa
 	reqMeta := requestMeta{
 		urlValues:     params,
 		bucketName:    bucketName,
+		objectName:    objectName,
 		contentSHA256: types.EmptyStringSHA256,
 	}
 
@@ -617,6 +618,7 @@ func (c *client) getObjectStatusFromSP(ctx context.Context, bucketName, objectNa
 	if err != nil {
 		return types.UploadProgress{}, err
 	}
+
 	defer utils.CloseResponse(resp)
 
 	objectStatus := types.UploadProgress{}
