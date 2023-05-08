@@ -7,11 +7,11 @@ import (
 
 	"cosmossdk.io/errors"
 	"github.com/bnb-chain/greenfield/sdk/types"
+	"github.com/cometbft/cometbft/proto/tendermint/p2p"
 	"github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	"github.com/cosmos/cosmos-sdk/types/tx"
-	"github.com/tendermint/tendermint/proto/tendermint/p2p"
 	"google.golang.org/grpc"
 )
 
